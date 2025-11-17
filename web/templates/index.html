@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-center align-items-center flex-grow-1">
+  <div class="row text-center w-100">
+    <!-- Gota -->
+    <div class="col-md-4 mb-4">
+      <i class="bi bi-droplet-fill" style="font-size: 3rem; color: #0d6efd;"></i>
+      <h4 class="mt-2">Precipitación</h4>
+      <p><strong>12 mm</strong> de agua</p>
+    </div>
+
+    <!-- Viento -->
+    <div class="col-md-4 mb-4">
+      <i class="bi bi-wind" style="font-size: 3rem; color: #198754;"></i>
+      <h4 class="mt-2">Velocidad del viento</h4>
+      <p><strong>5.3 m/s</strong></p>
+    </div>
+
+    <!-- Dirección -->
+    <div class="col-md-4 mb-4">
+      <i class="bi bi-compass" style="font-size: 3rem; color: #fd7e14;"></i>
+      <h4 class="mt-2">Dirección del viento</h4>
+      <p><strong>NE (45°)</strong></p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

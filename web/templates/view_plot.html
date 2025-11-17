@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Mapa: {{ nombre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center">
+  <h2>Mapa seleccionado: {{ nombre }}</h2>
+  <a href="{{ url_for('view_list') }}" class="btn btn-outline-secondary">← Volver</a>
+</div>
+<hr>
+<div id="grafico3d" style="width:100%; height:600px;"></div>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+  var trace = {
+    type: 'scatter3d',
+    mode: 'markers',
+    x: {{ x|safe }},
+    y: {{ y|safe }},
+    z: {{ z|safe }},
+    marker: { size: 3, color: {{ z|safe }}, colorscale: 'Viridis' }
+  };
+  var layout = {
+    title: "Plano desde archivo {{ nombre }}",
+    scene: { xaxis:{title:'X'}, yaxis:{title:'Y'}, zaxis:{title:'Z'} }
+  };
+  Plotly.newPlot('grafico3d', [trace], layout);
+</script>
+{% endblock %}

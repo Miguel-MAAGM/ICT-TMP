@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Calibración de Color{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">🎨 Calibraciones de color</h2>
+
+<!-- Listado de calibraciones -->
+<ul class="list-group mb-4">
+  {% if archivos %}
+    {% for archivo in archivos %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ archivo }}
+        <a href="#" class="btn btn-sm btn-outline-primary">Cargar calibración</a>
+      </li>
+    {% endfor %}
+  {% else %}
+    <li class="list-group-item text-muted">No hay calibraciones guardadas</li>
+  {% endif %}
+</ul>
+
+<!-- Botón crear nueva calibración -->
+<div class="text-center">
+  <a href="{{ url_for('nueva_calibracion_color') }}" class="btn btn-success btn-lg">
+    <i class="bi bi-plus-circle"></i> Crear nueva calibración
+  </a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Calibración de cámara{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">📷 Calibración de cámara</h2>
+
+{% if archivos %}
+<ul class="list-group mb-4">
+  {% for archivo in archivos %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    {{ archivo }}
+    <a href="{{ url_for('static', filename='calibraciones/' + archivo) }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-upload"></i> Cargar calibración
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>No se encontraron calibraciones guardadas.</p>
+{% endif %}
+
+<!-- Botón crear nueva calibración -->
+<div class="text-center mt-4">
+    <a href="{{ url_for('nueva_calibracion') }}" class="btn btn-lg btn-success">
+        <i class="bi bi-plus-circle"></i> Crear nueva calibración
+    </a>
+</div>
+
+{% endblock %}

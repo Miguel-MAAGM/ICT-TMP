@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Nueva Calibración de Color{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">🎨 Nueva calibración de color</h2>
+
+<div class="row">
+  <!-- IZQUIERDA: Streaming -->
+  <div class="col-md-8">
+    <div class="border">
+      <img id="video" src="{{ url_for('video_feed_color') }}" width="100%" />
+    </div>
+  </div>
+
+  <!-- DERECHA: Sliders -->
+  <div class="col-md-4">
+    <div class="p-3 rounded bg-dark text-white">
+      <h5>Umbrales de color</h5>
+
+      <!-- Slider R -->
+      <label class="form-label mt-3">🔴 Umbral R</label>
+      <div id="sliderR"></div>
+      <div><span id="r-val0"></span> — <span id="r-val1"></span></div>
+
+      <!-- Slider G -->
+      <label class="form-label mt-3">🟢 Umbral G</label>
+      <div id="sliderG"></div>
+      <div><span id="g-val0"></span> — <span id="g-val1"></span></div>
+
+      <!-- Slider B -->
+      <label class="form-label mt-3">🔵 Umbral B</label>
+      <div id="sliderB"></div>
+      <div><span id="b-val0"></span> — <span id="b-val1"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- noUiSlider -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+
+<style>
+  #sliderR .noUi-connect { background: red; }
+  #sliderG .noUi-connect { background: green; }
+  #sliderB .noUi-connect { background: blue; }
+  .noUi-tooltip { display: none !important; } /* 🔴 ocultar tooltips */
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Función auxiliar para crear sliders
+    function crearSlider(sliderElement) {
+      noUiSlider.create(sliderElement, {
+        start: [50, 200],   // valores iniciales
+        connect: true,
+        range: { min: 0, max: 255 },
+        step: 1,
+        tooltips: false
+      });
+    }
+
+    // Crear sliders
+    crearSlider(document.getElementById("sliderR"));
+    crearSlider(document.getElementById("sliderG"));
+    crearSlider(document.getElementById("sliderB"));
+
+    // Función para enviar umbrales al backend
+    function updateThresholds() {
+      const [r_min, r_max] = document.getElementById("sliderR").noUiSlider.get().map(v => parseInt(v));
+      const [g_min, g_max] = document.getElementById("sliderG").noUiSlider.get().map(v => parseInt(v));
+      const [b_min, b_max] = document.getElementById("sliderB").noUiSlider.get().map(v => parseInt(v));
+
+      // Opcional: mostrar valores en los spans
+      document.getElementById("r-val0").textContent = r_min;
+      document.getElementById("r-val1").textContent = r_max;
+      document.getElementById("g-val0").textContent = g_min;
+      document.getElementById("g-val1").textContent = g_max;
+      document.getElementById("b-val0").textContent = b_min;
+      document.getElementById("b-val1").textContent = b_max;
+
+      // Enviar al backend
+      fetch("/set_thresholds", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ r_min, r_max, g_min, g_max, b_min, b_max })
+      });
+    }
+
+    // Enganchar updateThresholds a cada slider
+    ["sliderR", "sliderG", "sliderB"].forEach(id => {
+      const slider = document.getElementById(id);
+      slider.noUiSlider.on("update", updateThresholds);
+    });
+  });
+</script>
+
+{% endblock %}

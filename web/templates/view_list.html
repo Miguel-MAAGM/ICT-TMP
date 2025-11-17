@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Mapas 3D{% endblock %}
+{% block content %}
+<h2>👁 Mapas de profundidad obtenidos</h2>
+
+{% if archivos %}
+<ul class="list-group">
+  {% for archivo in archivos %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <!-- Link para visualizar -->
+    <a href="{{ url_for('view_plot', nombre=archivo) }}" class="text-decoration-none">
+      📄 {{ archivo }}
+    </a>
+
+    <!-- Icono de descarga -->
+    <a href="{{ url_for('static', filename='modelos/' + archivo) }}" download class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-download"></i>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>No se encontraron mapas en la carpeta.</p>
+{% endif %}
+{% endblock %}
