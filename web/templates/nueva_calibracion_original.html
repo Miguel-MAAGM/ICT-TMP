@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Nueva Calibración{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">➕ Nueva calibración de cámara</h2>
+
+<!-- Formulario -->
+<div class="mb-4">
+  <div class="row g-3">
+    <!-- Nombre -->
+    <div class="col-md-6">
+      <label class="form-label">Nombre de la calibración</label>
+      <input type="text" class="form-control" placeholder="Ej: camara_lab_01" name="nombre" required>
+    </div>
+
+    <!-- Distancia -->
+    <div class="col-md-6">
+      <label class="form-label">Distancia del cuadro (cm)</label>
+      <input type="number" class="form-control" placeholder="Ej: 50" name="distancia" required>
+    </div>
+
+    <!-- Columnas -->
+    <div class="col-md-6">
+      <label class="form-label">Cantidad de columnas</label>
+      <input type="number" class="form-control" placeholder="Ej: 9" name="columnas" required>
+    </div>
+
+    <!-- Filas -->
+    <div class="col-md-6">
+      <label class="form-label">Cantidad de filas</label>
+      <input type="number" class="form-control" placeholder="Ej: 6" name="filas" required>
+    </div>
+  </div>
+</div>
+
+
+<!-- Layout principal -->
+<div class="row g-4 align-items-stretch" style="height: 100vh; overflow: hidden;">
+  <!-- IZQUIERDA: Streaming -->
+  <div class="col-lg-8 col-md-7 h-100">
+    <div class="border rounded bg-dark h-100 d-flex">
+      <img src="{{ url_for('video_feed') }}"
+           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; margin:auto;">
+    </div>
+  </div>
+
+  <!-- DERECHA: Captura + Galería + Botón final -->
+   <!-- DERECHA: Captura + Galería + Botón final -->
+  <div class="col-lg-4 col-md-5 d-flex flex-column h-50">
+    <!-- Botón capturar -->
+    <div class="d-flex justify-content-end mb-3">
+      <button id="btn-capture" class="btn btn-primary">
+        <i class="bi bi-camera"></i> Capturar
+      </button>
+    </div>
+
+    <!-- Galería -->
+    <div id="gallery" class="gallery flex-grow-1 mb-3">
+      <span class="text-muted">Sin capturas</span>
+    </div>
+
+    <!-- Botón generar calibración -->
+        <div class="d-flex justify-content-center mt-auto gap-2">
+      <button class="btn btn-success btn-lg px-4 w-100">
+        <i class="bi bi-gear"></i> Generar calibración
+      </button>
+      <a href="{{ url_for('cancelar_calibracion') }}" class="btn btn-danger btn-lg px-4 w-100">
+  <i class="bi bi-x-circle"></i> Cancelar calibración
+</a>
+      
+    </div>
+  </div>
+</div>
+
+<!-- Estilos -->
+<style>
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    width: 100%;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    background: #fafafa;
+  }
+  .gallery img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+    cursor: pointer;
+  }
+  .gallery img:hover {
+    transform: scale(1.05);
+    transition: transform .15s ease;
+  }
+</style>
+
+<!-- Script: Captura -->
+<script>
+document.getElementById("btn-capture").addEventListener("click", () => {
+  fetch("/capture", { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        const gallery = document.getElementById("gallery");
+
+        // Quita "Sin capturas" en la primera foto
+        if (gallery.querySelector("span")) {
+          gallery.innerHTML = "";
+        }
+
+        // Nueva miniatura
+        const img = document.createElement("img");
+        img.src = data.url;
+        img.alt = "Captura";
+        img.addEventListener("click", () => window.open(data.url, "_blank"));
+
+        gallery.appendChild(img);
+      }
+    });
+});
+</script>
+
+{% endblock %}

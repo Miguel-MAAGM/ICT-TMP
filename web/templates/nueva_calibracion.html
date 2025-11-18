@@ -10,64 +10,97 @@
     <!-- Nombre -->
     <div class="col-md-6">
       <label class="form-label">Nombre de la calibración</label>
-      <input type="text" class="form-control" placeholder="Ej: camara_lab_01" name="nombre" required>
+      <input type="text" class="form-control" placeholder="Ej: camara_lab_01" id="input-nombre" required>
     </div>
 
     <!-- Distancia -->
     <div class="col-md-6">
       <label class="form-label">Distancia del cuadro (cm)</label>
-      <input type="number" class="form-control" placeholder="Ej: 50" name="distancia" required>
+      <input type="number" class="form-control" placeholder="Ej: 50" id="input-distancia" required>
     </div>
 
     <!-- Columnas -->
     <div class="col-md-6">
       <label class="form-label">Cantidad de columnas</label>
-      <input type="number" class="form-control" placeholder="Ej: 9" name="columnas" required>
+      <input type="number" class="form-control" placeholder="Ej: 9" id="input-columnas" required>
     </div>
 
     <!-- Filas -->
     <div class="col-md-6">
       <label class="form-label">Cantidad de filas</label>
-      <input type="number" class="form-control" placeholder="Ej: 6" name="filas" required>
+      <input type="number" class="form-control" placeholder="Ej: 6" id="input-filas" required>
     </div>
   </div>
 </div>
 
+<!-- Barra de progreso para calibración -->
+<div id="progress-container" class="mb-3" style="display: none;">
+  <div class="alert alert-info d-flex align-items-center" role="alert">
+    <div class="spinner-border spinner-border-sm me-3" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <div class="w-100">
+      <strong id="progress-message">Iniciando calibración...</strong>
+      <div class="progress mt-2" style="height: 20px;">
+        <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" style="width: 0%">0%</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Layout principal -->
-<div class="row g-4 align-items-stretch" style="height: 100vh; overflow: hidden;">
+<div class="row g-4">
   <!-- IZQUIERDA: Streaming -->
-  <div class="col-lg-8 col-md-7 h-100">
-    <div class="border rounded bg-dark h-100 d-flex">
+  <div class="col-lg-8 col-md-7">
+    <div class="border rounded bg-dark position-relative" style="height: 65vh;">
       <img src="{{ url_for('video_feed') }}"
-           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; margin:auto;">
+           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">
+      
+      <!-- Contador de capturas superpuesto -->
+      <div class="position-absolute top-0 end-0 m-3">
+        <span class="badge bg-primary fs-5">
+          <i class="bi bi-images"></i> 
+          <span id="capture-count">0</span> capturas
+        </span>
+      </div>
     </div>
   </div>
 
-  <!-- DERECHA: Captura + Galería + Botón final -->
-   <!-- DERECHA: Captura + Galería + Botón final -->
-  <div class="col-lg-4 col-md-5 d-flex flex-column h-50">
+  <!-- DERECHA: Captura + Galería + Botones -->
+  <div class="col-lg-4 col-md-5 d-flex flex-column" style="height: 65vh;">
     <!-- Botón capturar -->
     <div class="d-flex justify-content-end mb-3">
-      <button id="btn-capture" class="btn btn-primary">
-        <i class="bi bi-camera"></i> Capturar
+      <button id="btn-capture" class="btn btn-primary btn-lg">
+        <i class="bi bi-camera-fill"></i> Capturar imagen
       </button>
     </div>
 
-    <!-- Galería -->
-    <div id="gallery" class="gallery flex-grow-1 mb-3">
-      <span class="text-muted">Sin capturas</span>
+    <!-- Galería - altura fija más pequeña -->
+    <div id="gallery" class="gallery mb-3" style="height: 280px; overflow-y: auto;">
+      <div class="text-center text-muted p-4">
+        <i class="bi bi-camera display-4 d-block mb-2"></i>
+        <p>Aún no hay capturas</p>
+        <small>Haz clic en "Capturar imagen" para comenzar</small>
+      </div>
     </div>
 
-    <!-- Botón generar calibración -->
-        <div class="d-flex justify-content-center mt-auto gap-2">
-      <button class="btn btn-success btn-lg px-4 w-100">
-        <i class="bi bi-gear"></i> Generar calibración
+    <!-- Requisitos de calibración -->
+    <div class="alert alert-warning mb-3" id="alert-requirement">
+      <small>
+        <i class="bi bi-info-circle"></i> 
+        <strong>Requisito:</strong> Se necesitan al menos 10 imágenes para generar la calibración
+      </small>
+    </div>
+
+    <!-- Botones finales -->
+    <div class="d-flex justify-content-center gap-2 mt-auto">
+      <button id="btn-generate" class="btn btn-success btn-lg px-4 w-100" disabled>
+        <i class="bi bi-gear-fill"></i> Generar calibración
       </button>
       <a href="{{ url_for('cancelar_calibracion') }}" class="btn btn-danger btn-lg px-4 w-100">
-  <i class="bi bi-x-circle"></i> Cancelar calibración
-</a>
-      
+        <i class="bi bi-x-circle"></i> Cancelar
+      </a>
     </div>
   </div>
 </div>
@@ -76,10 +109,8 @@
 <style>
   .gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    width: 100%;
-    overflow-y: auto;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     padding: 8px;
     border: 1px solid #e3e3e3;
     border-radius: 10px;
@@ -92,36 +123,193 @@
     border-radius: 8px;
     display: block;
     cursor: pointer;
+    transition: transform 0.15s ease;
   }
   .gallery img:hover {
     transform: scale(1.05);
-    transition: transform .15s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  .fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
   }
 </style>
 
-<!-- Script: Captura -->
+<!-- Toast Container para notificaciones -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+  <div id="toast-capture" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span id="toast-message">Imagen capturada correctamente</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Script -->
 <script>
-document.getElementById("btn-capture").addEventListener("click", () => {
-  fetch("/capture", { method: "POST" })
+let captureCount = 0;
+const MIN_CAPTURES = 10;
+
+// Referencias
+const btnCapture = document.getElementById("btn-capture");
+const btnGenerate = document.getElementById("btn-generate");
+const gallery = document.getElementById("gallery");
+const captureCountEl = document.getElementById("capture-count");
+const toastEl = document.getElementById("toast-capture");
+const toastMessage = document.getElementById("toast-message");
+const alertRequirement = document.getElementById("alert-requirement");
+
+// Función para mostrar toast
+function showToast(message, type = 'success') {
+  toastMessage.textContent = message;
+  toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+  const toast = new bootstrap.Toast(toastEl);
+  toast.show();
+}
+
+// Capturar imagen
+btnCapture.addEventListener("click", () => {
+  btnCapture.disabled = true;
+  btnCapture.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Capturando...';
+  
+  const columnas = document.getElementById('input-columnas').value;
+  const filas = document.getElementById('input-filas').value;
+  
+  if (!columnas || !filas) {
+    showToast('⚠ Por favor ingresa la cantidad de columnas y filas', 'warning');
+    btnCapture.disabled = false;
+    btnCapture.innerHTML = '<i class="bi bi-camera-fill"></i> Capturar imagen';
+    return;
+  }
+  
+  fetch("/calibration/capture", { 
+    method: "POST",
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chessboard_size: [parseInt(columnas), parseInt(filas)]
+    })
+  })
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        const gallery = document.getElementById("gallery");
+        captureCount = data.images_count;
+        captureCountEl.textContent = captureCount;
 
-        // Quita "Sin capturas" en la primera foto
-        if (gallery.querySelector("span")) {
+        // Limpiar mensaje inicial
+        if (gallery.querySelector(".text-center")) {
           gallery.innerHTML = "";
         }
 
-        // Nueva miniatura
+        // Agregar miniatura con animación - CORREGIDO: usar 'url' en lugar de 'image_path'
         const img = document.createElement("img");
-        img.src = data.url;
-        img.alt = "Captura";
+        img.src = data.url;  // <-- CAMBIO IMPORTANTE
+        img.alt = "Captura " + captureCount;
+        img.className = "fade-in";
         img.addEventListener("click", () => window.open(data.url, "_blank"));
-
         gallery.appendChild(img);
+
+        // Scroll automático al final
+        gallery.scrollTop = gallery.scrollHeight;
+
+        // Mostrar notificación
+        showToast(`✓ Imagen ${captureCount} capturada correctamente`, 'success');
+
+        // Verificar si se alcanzó el mínimo
+        if (captureCount >= MIN_CAPTURES) {
+          btnGenerate.disabled = false;
+          alertRequirement.className = "alert alert-success mb-3";
+          alertRequirement.innerHTML = `
+            <i class="bi bi-check-circle-fill"></i> 
+            <strong>¡Listo!</strong> Tienes ${captureCount} imágenes. Ya puedes generar la calibración.
+          `;
+        } else {
+          alertRequirement.innerHTML = `
+            <small>
+              <i class="bi bi-info-circle"></i> 
+              <strong>Progreso:</strong> ${captureCount}/${MIN_CAPTURES} imágenes capturadas
+            </small>
+          `;
+        }
+      } else {
+        showToast(data.message || '⚠ Error al capturar la imagen', 'danger');
       }
+    })
+    .catch(err => {
+      console.error(err);
+      showToast('⚠ Error de conexión', 'danger');
+    })
+    .finally(() => {
+      btnCapture.disabled = false;
+      btnCapture.innerHTML = '<i class="bi bi-camera-fill"></i> Capturar imagen';
     });
+});
+
+// Generar calibración
+btnGenerate.addEventListener("click", () => {
+  // Validar campos
+  const nombre = document.getElementById("input-nombre").value;
+  const distancia = document.getElementById("input-distancia").value;
+  const columnas = document.getElementById("input-columnas").value;
+  const filas = document.getElementById("input-filas").value;
+
+  if (!nombre || !distancia || !columnas || !filas) {
+    showToast('⚠ Por favor completa todos los campos', 'warning');
+    return;
+  }
+
+  // Deshabilitar botones
+  btnGenerate.disabled = true;
+  btnCapture.disabled = true;
+
+  // Mostrar progreso
+  const progressContainer = document.getElementById("progress-container");
+  const progressBar = document.getElementById("progress-bar");
+  const progressMessage = document.getElementById("progress-message");
+  
+  progressContainer.style.display = "block";
+  progressMessage.textContent = "Calculando calibración...";
+  progressBar.style.width = "50%";
+  progressBar.textContent = "50%";
+
+  // Llamada real al backend
+  fetch("/calibration/compute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: nombre })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      progressBar.style.width = "100%";
+      progressBar.textContent = "100%";
+      progressBar.className = "progress-bar bg-success";
+      progressMessage.textContent = "¡Calibración generada exitosamente!";
+      
+      showToast(`✓ Calibración guardada: ${data.calibration_name}`, 'success');
+      
+      setTimeout(() => {
+        window.location.href = "/ajustes/camara";  // <-- RUTA CORREGIDA
+      }, 1500);
+    } else {
+      showToast(data.message || '⚠ Error al generar calibración', 'danger');
+      btnGenerate.disabled = false;
+      btnCapture.disabled = false;
+      progressContainer.style.display = 'none';
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    showToast('⚠ Error de conexión al generar calibración', 'danger');
+    btnGenerate.disabled = false;
+    btnCapture.disabled = false;
+    progressContainer.style.display = 'none';
+  });
 });
 </script>
 
