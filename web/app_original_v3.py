@@ -1,4 +1,4 @@
-#Este codigo es el final, contiene todo y se prueba pero con la camara web
+
 import os
 import csv
 from flask import Flask, render_template, Response, request, jsonify, redirect, url_for
