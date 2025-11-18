@@ -4,8 +4,6 @@ from flask import Flask, render_template, Response, request, jsonify, redirect, 
 import cv2
 from datetime import datetime
 import numpy as np
-import json
-import glob
 
 app = Flask(__name__)
 
@@ -15,7 +13,14 @@ CAPTURAS_FOLDER = os.path.join("static", "capturas")
 COLOR_FOLDER = os.path.join("static", "calibraciones_color")
 
 os.makedirs(CAPTURAS_FOLDER, exist_ok=True)
-os.makedirs(CALIB_FOLDER, exist_ok=True)
+
+# ========== CAMBIO PRINCIPAL: Usar webcam de PC en lugar de Picamera2 ==========
+# Comentamos picamera2 y usamos cv2.VideoCapture
+# picam2 = Picamera2()
+# picam2.configure(picam2.create_preview_configuration(
+#     main={"format": "RGB888", "size": (1280, 720)}
+# ))
+# picam2.start()
 
 # Inicializar la cámara web (0 = cámara por defecto)
 camera = cv2.VideoCapture(0)
@@ -32,11 +37,6 @@ color_thresholds = {
 step_counter = 0
 step_size = 1
 
-# ----------------- VARIABLES PARA CALIBRACIÓN DE CÁMARA -----------------
-calibration_images = []  # Almacena las imágenes capturadas para calibración
-objpoints = []  # Puntos 3D en el espacio del mundo real
-imgpoints = []  # Puntos 2D en el plano de la imagen
-
 def gen_frames():
     """Genera frames desde la webcam"""
     while True:
@@ -47,9 +47,9 @@ def gen_frames():
         # Codificar directamente sin conversión de color
         ret, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
-        
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
 
 def generate_color_frames():
     """Genera frames con filtro de color desde la webcam"""
@@ -76,162 +76,7 @@ def generate_color_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-# ----------------- NUEVAS FUNCIONES DE CALIBRACIÓN -----------------
-
-@app.route('/calibration/capture', methods=['POST'])
-def capture_calibration_image():
-    """Captura una imagen para calibración y detecta el patrón de tablero de ajedrez"""
-    global calibration_images, objpoints, imgpoints
-    
-    data = request.get_json()
-    chessboard_size = data.get('chessboard_size', [7, 6])  # Por defecto 7x6 esquinas internas
-    
-    print(f"📸 Capturando imagen de calibración (patrón {chessboard_size[0]}x{chessboard_size[1]})...")
-    
-    success, frame = camera.read()
-    if not success:
-        return jsonify({"success": False, "message": "Error al capturar imagen"})
-    
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    # Buscar las esquinas del tablero de ajedrez
-    ret, corners = cv2.findChessboardCorners(gray, tuple(chessboard_size), None)
-    
-    if ret:
-        # Preparar puntos del objeto (0,0,0), (1,0,0), (2,0,0) ... (6,5,0)
-        objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-        objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
-        
-        # Refinar las esquinas con mayor precisión
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-        
-        # Guardar puntos
-        objpoints.append(objp)
-        imgpoints.append(corners2)
-        
-        # Dibujar las esquinas en la imagen
-        img_with_corners = frame.copy()
-        cv2.drawChessboardCorners(img_with_corners, tuple(chessboard_size), corners2, ret)
-        
-        # Guardar imagen con esquinas detectadas
-        filename = f"calib_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-        path = os.path.join(CAPTURAS_FOLDER, filename)
-        cv2.imwrite(path, img_with_corners)
-        
-        calibration_images.append(path)
-        
-        print(f"✅ Patrón detectado correctamente. Total de imágenes: {len(calibration_images)}")
-        
-        return jsonify({
-            "success": True,
-            "message": f"Patrón detectado. Imágenes capturadas: {len(calibration_images)}",
-            "images_count": len(calibration_images),
-            "url": url_for('static', filename=f"capturas/{filename}")
-        })
-    else:
-        print("❌ No se pudo detectar el patrón de tablero de ajedrez")
-        return jsonify({
-            "success": False,
-            "message": "No se detectó el patrón de tablero. Asegúrate de que el tablero esté completamente visible."
-        })
-
-@app.route('/calibration/compute', methods=['POST'])
-def compute_calibration():
-    """Calcula los parámetros de calibración de la cámara"""
-    global objpoints, imgpoints, calibration_images
-    
-    if len(calibration_images) < 10:
-        return jsonify({
-            "success": False,
-            "message": f"Se necesitan al menos 10 imágenes para una buena calibración. Tienes {len(calibration_images)}."
-        })
-    
-    print(f"🔧 Calculando calibración con {len(calibration_images)} imágenes...")
-    
-    # Obtener dimensiones de la imagen
-    success, frame = camera.read()
-    if not success:
-        return jsonify({"success": False, "message": "Error al acceder a la cámara"})
-    
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    img_shape = gray.shape[::-1]
-    
-    # Realizar calibración
-    ret, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.calibrateCamera(
-        objpoints, imgpoints, img_shape, None, None
-    )
-    
-    if not ret:
-        return jsonify({"success": False, "message": "Error en el cálculo de calibración"})
-    
-    # Calcular error de reproyección
-    mean_error = 0
-    for i in range(len(objpoints)):
-        imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], camera_matrix, dist_coeffs)
-        error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
-        mean_error += error
-    
-    mean_error = mean_error / len(objpoints)
-    
-    print(f"✅ Calibración completada. Error medio de reproyección: {mean_error:.4f}")
-    
-    # Guardar resultados en formato JSON
-    data = request.get_json()
-    calibration_name = data.get('name', f"calibration_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-    
-    calibration_data = {
-        "name": calibration_name,
-        "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        "camera_matrix": camera_matrix.tolist(),
-        "distortion_coefficients": dist_coeffs.tolist(),
-        "reprojection_error": mean_error,
-        "num_images": len(calibration_images),
-        "image_size": list(img_shape)
-    }
-    
-    # Guardar en archivo JSON
-    filename = f"{calibration_name}.json"
-    filepath = os.path.join(CALIB_FOLDER, filename)
-    
-    with open(filepath, 'w') as f:
-        json.dump(calibration_data, f, indent=4)
-    
-    print(f"💾 Calibración guardada en: {filepath}")
-    
-    return jsonify({
-        "success": True,
-        "message": f"Calibración completada exitosamente. Error: {mean_error:.4f}",
-        "calibration_name": calibration_name,
-        "reprojection_error": mean_error,
-        "num_images": len(calibration_images)
-    })
-
-@app.route('/calibration/reset', methods=['POST'])
-def reset_calibration():
-    """Reinicia el proceso de calibración"""
-    global calibration_images, objpoints, imgpoints
-    
-    print("🔄 Reiniciando proceso de calibración...")
-    
-    calibration_images = []
-    objpoints = []
-    imgpoints = []
-    
-    return jsonify({
-        "success": True,
-        "message": "Proceso de calibración reiniciado"
-    })
-
-@app.route('/calibration/status', methods=['GET'])
-def calibration_status():
-    """Devuelve el estado actual de la calibración"""
-    return jsonify({
-        "images_captured": len(calibration_images),
-        "ready_to_calibrate": len(calibration_images) >= 10
-    })
-
-# ----------------- RUTAS DE CONTROL -----------------
+# ----------------- NUEVAS RUTAS DE CONTROL -----------------
 
 @app.route('/action/<cmd>', methods=['POST'])
 def control_action(cmd):
@@ -262,7 +107,7 @@ def control_action(cmd):
         
     elif cmd == "start_loop":
         print("🟢 Botón start loop presionado")
-    
+        
     return jsonify({"success": True, "step": step_counter})
 
 @app.route('/set_step_size', methods=['POST'])
@@ -368,7 +213,6 @@ def ajustes_camara():
 def view_plot(nombre):
     ruta = os.path.join(MAPS_FOLDER, nombre)
     x, y, z = [], [], []
-    
     if os.path.exists(ruta):
         with open(ruta) as f:
             reader = csv.DictReader(f)
@@ -376,7 +220,6 @@ def view_plot(nombre):
                 x.append(float(row["x"]))
                 y.append(float(row["y"]))
                 z.append(float(row["z"]))
-    
     return render_template("view_plot.html", nombre=nombre, x=x, y=y, z=z)
 
 if __name__ == '__main__':

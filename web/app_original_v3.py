@@ -1,3 +1,4 @@
+#Este codigo es el final, contiene todo y se prueba pero con la camara web
 import os
 import csv
 from flask import Flask, render_template, Response, request, jsonify, redirect, url_for
@@ -19,8 +20,14 @@ os.makedirs(CALIB_FOLDER, exist_ok=True)
 
 # Inicializar la cámara web (0 = cámara por defecto)
 camera = cv2.VideoCapture(0)
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+# ----------------- CONFIGURACIÓN DE RESOLUCIONES -----------------
+stream_resolution = {"width": 1280, "height": 720}  # Resolución para streaming
+capture_resolution = {"width": 1920, "height": 1080}  # Resolución para captura
+
+# Configurar resolución inicial de streaming
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, stream_resolution["width"])
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, stream_resolution["height"])
 
 color_thresholds = {
     "r_min": 0, "r_max": 255,
@@ -38,7 +45,7 @@ objpoints = []  # Puntos 3D en el espacio del mundo real
 imgpoints = []  # Puntos 2D en el plano de la imagen
 
 def gen_frames():
-    """Genera frames desde la webcam"""
+    """Genera frames desde la webcam con resolución de streaming"""
     while True:
         success, frame = camera.read()
         if not success:
@@ -76,6 +83,123 @@ def generate_color_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
+def capture_high_res_frame():
+    """Captura un frame en alta resolución (resolución de captura)"""
+    # Guardar resolución actual
+    current_width = camera.get(cv2.CAP_PROP_FRAME_WIDTH)
+    current_height = camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    
+    # Cambiar a resolución de captura
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, capture_resolution["width"])
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, capture_resolution["height"])
+    
+    # Esperar un poco para que la cámara se ajuste
+    import time
+    time.sleep(0.1)
+    
+    # Capturar frame
+    success, frame = camera.read()
+    
+    # Restaurar resolución de streaming
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, current_width)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, current_height)
+    
+    return success, frame
+
+# ----------------- RUTAS DE CONFIGURACIÓN DE CÁMARA -----------------
+
+@app.route('/camera_setup')
+def camera_setup():
+    """Página de configuración de resoluciones de cámara"""
+    return render_template("camera_setup.html")
+
+@app.route('/camera/get_resolutions', methods=['GET'])
+def get_resolutions():
+    """Obtiene las resoluciones actuales"""
+    return jsonify({
+        "success": True,
+        "stream_width": stream_resolution["width"],
+        "stream_height": stream_resolution["height"],
+        "capture_width": capture_resolution["width"],
+        "capture_height": capture_resolution["height"]
+    })
+
+@app.route('/camera/set_stream_resolution', methods=['POST'])
+def set_stream_resolution():
+    """Cambia la resolución de streaming"""
+    global stream_resolution
+    
+    data = request.get_json()
+    width = int(data.get('width', 1280))
+    height = int(data.get('height', 720))
+    
+    print(f"🎥 Cambiando resolución de streaming a {width}x{height}")
+    
+    # Actualizar la cámara
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    
+    # Guardar en variables globales
+    stream_resolution["width"] = width
+    stream_resolution["height"] = height
+    
+    # Verificar que se aplicó correctamente
+    actual_width = int(camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_height = int(camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    print(f"✅ Resolución aplicada: {actual_width}x{actual_height}")
+    
+    return jsonify({
+        "success": True,
+        "message": f"Resolución de streaming cambiada a {actual_width}x{actual_height}",
+        "actual_width": actual_width,
+        "actual_height": actual_height
+    })
+
+@app.route('/camera/set_capture_resolution', methods=['POST'])
+def set_capture_resolution():
+    """Cambia la resolución de captura"""
+    global capture_resolution
+    
+    data = request.get_json()
+    width = int(data.get('width', 1920))
+    height = int(data.get('height', 1080))
+    
+    print(f"📸 Resolución de captura configurada a {width}x{height}")
+    
+    capture_resolution["width"] = width
+    capture_resolution["height"] = height
+    
+    return jsonify({
+        "success": True,
+        "message": f"Resolución de captura configurada a {width}x{height}"
+    })
+
+@app.route('/camera/test_capture', methods=['POST'])
+def test_capture():
+    """Realiza una captura de prueba con la resolución de captura"""
+    print("📷 Realizando captura de prueba...")
+    
+    success, frame = capture_high_res_frame()
+    
+    if not success:
+        return jsonify({"success": False, "message": "Error al capturar imagen"})
+    
+    filename = "preview_capture.jpg"
+    path = os.path.join(CAPTURAS_FOLDER, filename)
+    cv2.imwrite(path, frame)
+    
+    actual_height, actual_width = frame.shape[:2]
+    
+    print(f"✅ Captura de prueba guardada: {actual_width}x{actual_height}")
+    
+    return jsonify({
+        "success": True,
+        "url": url_for('static', filename=f"capturas/{filename}"),
+        "width": actual_width,
+        "height": actual_height
+    })
+
 # ----------------- NUEVAS FUNCIONES DE CALIBRACIÓN -----------------
 
 @app.route('/calibration/capture', methods=['POST'])
@@ -88,7 +212,9 @@ def capture_calibration_image():
     
     print(f"📸 Capturando imagen de calibración (patrón {chessboard_size[0]}x{chessboard_size[1]})...")
     
-    success, frame = camera.read()
+    # Usar la función de captura en alta resolución
+    success, frame = capture_high_res_frame()
+    
     if not success:
         return jsonify({"success": False, "message": "Error al capturar imagen"})
     
@@ -149,8 +275,8 @@ def compute_calibration():
     
     print(f"🔧 Calculando calibración con {len(calibration_images)} imágenes...")
     
-    # Obtener dimensiones de la imagen
-    success, frame = camera.read()
+    # Obtener dimensiones de la imagen (usar resolución de captura)
+    success, frame = capture_high_res_frame()
     if not success:
         return jsonify({"success": False, "message": "Error al acceder a la cámara"})
     
@@ -171,7 +297,6 @@ def compute_calibration():
         imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], camera_matrix, dist_coeffs)
         error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
         mean_error += error
-    
     mean_error = mean_error / len(objpoints)
     
     print(f"✅ Calibración completada. Error medio de reproyección: {mean_error:.4f}")
@@ -240,26 +365,27 @@ def control_action(cmd):
     if cmd == "left":
         print(f"🟢 Botón izquierda presionado (paso: {step_size})")
         step_counter -= step_size
-        
+    
     elif cmd == "right":
         print(f"🟢 Botón derecha presionado (paso: {step_size})")
         step_counter += step_size
-        
+    
     elif cmd == "capture":
         print("🟢 Botón capture presionado")
-        # Capturar desde la webcam
-        success, frame = camera.read()
+        # Capturar con resolución de captura
+        success, frame = capture_high_res_frame()
         if success:
             filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             path = os.path.join(CAPTURAS_FOLDER, filename)
             cv2.imwrite(path, frame)
+            
             return jsonify({
                 "success": True,
                 "step": step_counter,
                 "url": url_for('static', filename=f"capturas/{filename}")
             })
         return jsonify({"success": False, "step": step_counter})
-        
+    
     elif cmd == "start_loop":
         print("🟢 Botón start loop presionado")
     
