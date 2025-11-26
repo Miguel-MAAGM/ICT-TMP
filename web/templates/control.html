@@ -3,528 +3,483 @@
 {% block content %}
 
 <style>
-    :root {
-        --primary-blue: #2563eb;
-        --primary-blue-hover: #1d4ed8;
-        --secondary-slate: #475569;
-        --secondary-slate-hover: #334155;
-        --accent-orange: #f97316; /* Color usado para el display de grados */
-        --accent-orange-hover: #ea580c;
-        --success-green: #10b981;
-        --success-green-hover: #059669;
-        --danger-red: #ef4444; 
-        --danger-red-hover: #dc2626; 
-        --bg-gray: #f8fafc;
-        --border-gray: #e2e8f0;
-        --text-dark: #1e293b;
-        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        --shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
+    :root {
+        --primary-blue: #2563eb;
+        --primary-blue-hover: #1d4ed8;
+        --secondary-slate: #475569;
+        --secondary-slate-hover: #334155;
+        --accent-orange: #f97316;
+        --accent-orange-hover: #ea580c;
+        --success-green: #10b981;
+        --success-green-hover: #059669;
+        --danger-red: #ef4444; /* NUEVO: Color Rojo para STOP */
+        --danger-red-hover: #dc2626; /* NUEVO: Color Rojo Hover */
+        --bg-gray: #f8fafc;
+        --border-gray: #e2e8f0;
+        --text-dark: #1e293b;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
 
-    /* ... (Resto de CSS sin cambios, ya que los estilos base son adecuados) ... */
+    body {
+        background: var(--bg-gray);
+    }
 
-    body {
-        background: var(--bg-gray);
-    }
+    .control-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
 
-    .control-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+    .page-title {
+        text-align: center;
+        color: var(--text-dark);
+        font-size: 2rem;
+        margin-bottom: 30px;
+        font-weight: 600;
+    }
 
-    .page-title {
-        text-align: center;
-        color: var(--text-dark);
-        font-size: 2rem;
-        margin-bottom: 30px;
-        font-weight: 600;
-    }
+    .video-container {
+        width: 100%;
+        max-width: 900px;
+        height: 450px;
+        border: 2px solid var(--border-gray);
+        border-radius: 12px;
+        margin: 0 auto 40px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        background: #000;
+    }
 
-    .video-container {
-        width: 100%;
-        max-width: 900px;
-        height: 450px;
-        border: 2px solid var(--border-gray);
-        border-radius: 12px;
-        margin: 0 auto 40px;
-        overflow: hidden;
-        box-shadow: var(--shadow);
-        background: #000;
-    }
+    .video-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
 
-    .video-container img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
+    .controls-section {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 40px;
+    }
 
-    .controls-section {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 20px;
-        flex-wrap: wrap;
-        margin-top: 40px;
-    }
+    .step-control {
+        border: 2px solid var(--border-gray);
+        padding: 20px 30px;
+        border-radius: 12px;
+        background: white;
+        box-shadow: var(--shadow);
+        text-align: center;
+        min-width: 140px;
+    }
 
-    .step-control {
-        border: 2px solid var(--border-gray);
-        padding: 20px 30px;
-        border-radius: 12px;
-        background: white;
-        box-shadow: var(--shadow);
-        text-align: center;
-        min-width: 140px;
-    }
+    .step-control label {
+        display: block;
+        color: var(--secondary-slate);
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
 
-    .step-control label {
-        display: block;
-        color: var(--secondary-slate);
-        font-size: 0.85rem;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 600;
-    }
+    .step-control input {
+        width: 80px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--primary-blue);
+        border: 2px solid var(--border-gray);
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
 
-    .step-control input {
-        width: 80px;
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: var(--primary-blue);
-        border: 2px solid var(--border-gray);
-        border-radius: 8px;
-        padding: 8px;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
+    .step-control input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
 
-    .step-control input:focus {
-        outline: none;
-        border-color: var(--primary-blue);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
+    .step-control input::-webkit-inner-spin-button,
+    .step-control input::-webkit-outer-spin-button {
+        opacity: 1;
+        height: 30px;
+    }
 
-    .step-control input::-webkit-inner-spin-button,
-    .step-control input::-webkit-outer-spin-button {
-        opacity: 1;
-        height: 30px;
-    }
+    button {
+        border: none;
+        padding: 15px 30px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow);
+        outline: none;
+        color: white;
+    }
 
-    button {
-        border: none;
-        padding: 15px 30px;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: var(--shadow);
-        outline: none;
-        color: white;
-    }
+    button:hover {
+        box-shadow: var(--shadow-hover);
+        transform: translateY(-2px);
+    }
 
-    button:hover {
-        box-shadow: var(--shadow-hover);
-        transform: translateY(-2px);
-    }
+    button:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow);
+    }
 
-    button:active {
-        transform: translateY(0);
-        box-shadow: var(--shadow);
-    }
+    .btn-arrow {
+        background: var(--primary-blue);
+        font-size: 2rem;
+        padding: 20px 35px;
+        min-width: 80px;
+    }
 
-    .btn-arrow {
-        background: var(--primary-blue);
-        font-size: 2rem;
-        padding: 20px 35px;
-        min-width: 80px;
-    }
+    .btn-arrow:hover {
+        background: var(--primary-blue-hover);
+    }
 
-    .btn-arrow:hover {
-        background: var(--primary-blue-hover);
-    }
+    .btn-capture {
+        background: var(--secondary-slate);
+        padding: 18px 40px;
+        font-size: 1.1rem;
+    }
 
-    .btn-capture {
-        background: var(--secondary-slate);
-        padding: 18px 40px;
-        font-size: 1.1rem;
-    }
+    .btn-capture:hover {
+        background: var(--secondary-slate-hover);
+    }
 
-    .btn-capture:hover {
-        background: var(--secondary-slate-hover);
-    }
+    .btn-loop {
+        background: var(--accent-orange);
+        padding: 18px 35px;
+        font-size: 1.1rem;
+    }
 
-    .btn-loop {
-        background: var(--accent-orange);
-        padding: 18px 35px;
-        font-size: 1.1rem;
-    }
+    .btn-loop:hover {
+        background: var(--accent-orange-hover);
+    }
+    
+    /* NUEVO: Estilo para el botón de Stop */
+    .btn-stop {
+        background: var(--danger-red);
+        padding: 18px 35px;
+        font-size: 1.1rem;
+    }
 
-    .btn-loop:hover {
-        background: var(--accent-orange-hover);
-    }
-    
-    .btn-stop {
-        background: var(--danger-red);
-        padding: 18px 35px;
-        font-size: 1.1rem;
-    }
+    .btn-stop:hover {
+        background: var(--danger-red-hover);
+    }
+    /* FIN NUEVO */
 
-    .btn-stop:hover {
-        background: var(--danger-red-hover);
-    }
+    .btn-set-step {
+        background: var(--success-green);
+        padding: 12px 25px;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
 
-    .btn-set-step {
-        background: var(--success-green);
-        padding: 12px 25px;
-        font-size: 0.9rem;
-        margin-top: 10px;
-    }
+    .btn-set-step:hover {
+        background: var(--success-green-hover);
+    }
 
-    .btn-set-step:hover {
-        background: var(--success-green-hover);
-    }
-    
-    /* Estilos para el display de grados */
-    #current-angle-display {
-        font-size: 2rem;
-        font-weight: bold;
-        color: var(--accent-orange);
-        display: block;
-        margin-bottom: 5px;
-    }
+    /* Toast Notification Styles */
+    /* ... (Estilos de Toast sin cambios) ... */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
 
+    .toast {
+        background: white;
+        color: var(--text-dark);
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 280px;
+        max-width: 400px;
+        font-weight: 500;
+        transform: translateX(400px);
+        opacity: 0;
+        transition: all 0.3s ease;
+    }
 
-    /* Toast Notification Styles (sin cambios) */
-    .toast-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
 
-    .toast {
-        background: white;
-        color: var(--text-dark);
-        padding: 16px 24px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 280px;
-        max-width: 400px;
-        font-weight: 500;
-        transform: translateX(400px);
-        opacity: 0;
-        transition: all 0.3s ease;
-    }
+    .toast.hide {
+        transform: translateX(400px);
+        opacity: 0;
+    }
 
-    .toast.show {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    .toast-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
 
-    .toast.hide {
-        transform: translateX(400px);
-        opacity: 0;
-    }
+    .toast.success {
+        border-left: 4px solid var(--success-green);
+    }
 
-    .toast-icon {
-        font-size: 1.5rem;
-        flex-shrink: 0;
-    }
+    .toast.success .toast-icon {
+        color: var(--success-green);
+    }
 
-    .toast.success {
-        border-left: 4px solid var(--success-green);
-    }
+    .toast.info {
+        border-left: 4px solid var(--primary-blue);
+    }
 
-    .toast.success .toast-icon {
-        color: var(--success-green);
-    }
+    .toast.info .toast-icon {
+        color: var(--primary-blue);
+    }
 
-    .toast.info {
-        border-left: 4px solid var(--primary-blue);
-    }
+    .toast.warning {
+        border-left: 4px solid var(--accent-orange);
+    }
 
-    .toast.info .toast-icon {
-        color: var(--primary-blue);
-    }
+    .toast.warning .toast-icon {
+        color: var(--accent-orange);
+    }
 
-    .toast.warning {
-        border-left: 4px solid var(--accent-orange);
-    }
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
 
-    .toast.warning .toast-icon {
-        color: var(--accent-orange);
-    }
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
 
-    @keyframes slideIn {
-        from {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
+    @media (max-width: 768px) {
+        .controls-section {
+            flex-direction: column;
+            gap: 15px;
+        }
 
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-    }
+        .video-container {
+            height: 300px;
+        }
 
-    @media (max-width: 768px) {
-        .controls-section {
-            flex-direction: column;
-            gap: 15px;
-        }
+        button {
+            width: 100%;
+            max-width: 300px;
+        }
 
-        .video-container {
-            height: 300px;
-        }
+        .step-control {
+            width: 100%;
+            max-width: 300px;
+        }
 
-        button {
-            width: 100%;
-            max-width: 300px;
-        }
+        .toast-container {
+            top: 10px;
+            right: 10px;
+            left: 10px;
+        }
 
-        .step-control {
-            width: 100%;
-            max-width: 300px;
-        }
-
-        .toast-container {
-            top: 10px;
-            right: 10px;
-            left: 10px;
-        }
-
-        .toast {
-            min-width: auto;
-            width: 100%;
-        }
-    }
+        .toast {
+            min-width: auto;
+            width: 100%;
+        }
+    }
 </style>
 
 <div class="control-container">
-    <h2 class="page-title">Control de Cámara con Step Motor</h2>
+    <h2 class="page-title">Control de Cámara con Step Motor</h2>
 
-    <div class="video-container">
-        <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
-    </div>
+    <div class="video-container">
+        <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
+    </div>
 
-    <div class="controls-section">
-        <div class="step-control">
-            <label for="step-size">Tamaño del Paso (Grados)</label>
-            <input type="number" id="step-size" value="20" min="1" max="360" step="1">
-            <button class="btn-set-step" onclick="setStepSize()">Aplicar</button>
-        </div>
-        
-        <div class="step-control" style="min-width: 180px;">
-            <label>Posición Actual</label>
-            <span id="current-angle-display" style="font-size: 2rem; font-weight: bold; color: var(--accent-orange);">
-                --°
-            </span>
-            <button class="btn-set-step" onclick="readCurrentAngle()">Actualizar</button>
+    <div class="controls-section">
+        <div class="step-control">
+            <label for="step-size">Tamaño del Paso (Grados)</label>
+            <input type="number" id="step-size" value="20" min="1" max="360" step="1">
+            <button class="btn-set-step" onclick="setStepSize()">Aplicar</button>
         </div>
-                <button class="btn-arrow" onclick="sendAction('left')" aria-label="Mover izquierda">
-            ⬅
-        </button>
 
-        <button class="btn-capture" onclick="sendAction('capture')">
-            📸 Capturar
-        </button>
+        <button class="btn-arrow" onclick="sendAction('left')" aria-label="Mover izquierda">
+            ⬅
+        </button>
 
-        <button class="btn-arrow" onclick="sendAction('right')" aria-label="Mover derecha">
-            ➡
-        </button>
+        <button class="btn-capture" onclick="sendAction('capture')">
+            📸 Capturar
+        </button>
 
-        <button class="btn-loop" onclick="sendAction('start_loop')">
-            🔄 Iniciar Loop
-        </button>
-        
-        <button id="btn-stop" class="btn-stop" onclick="sendAction('stop')">
-            🛑 Detener Loop (Stop)
-        </button>
-    </div>
+        <button class="btn-arrow" onclick="sendAction('right')" aria-label="Mover derecha">
+            ➡
+        </button>
+
+        <button class="btn-loop" onclick="sendAction('start_loop')">
+            🔄 Iniciar Loop
+        </button>
+        
+        <button id="btn-stop" class="btn-stop" onclick="sendAction('stop')">
+            🛑 Detener Loop (Stop)
+        </button>
+    </div>
 </div>
 
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-let currentStepSize = 20;
+let currentStepSize = 20; // Actualizado a 20 grados por defecto
 
-// Función para mostrar notificaciones toast (sin cambios)
+// Función para mostrar notificaciones toast
 function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    
-    const icons = {
-        success: '✓',
-        info: 'ℹ',
-        warning: '⚠',
-        danger: '✕'
-    };
-    
-    toast.innerHTML = `
-        <span class="toast-icon">${icons[type] || icons.info}</span>
-        <span>${message}</span>
-    `;
-    
-    container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        toast.classList.add('hide');
-        setTimeout(() => {
-            container.removeChild(toast);
-        }, 300);
-    }, 3000);
-}
-
-// NUEVO: Función para actualizar el display del ángulo
-function updateAngleDisplay(angle) {
-    const display = document.getElementById('current-angle-display');
-    if (display && typeof angle === 'number' && !isNaN(angle)) {
-        display.innerText = `${angle.toFixed(2)}°`;
-    } else if (display) {
-        display.innerText = 'Error';
-    }
-}
-
-// NUEVO: Función para leer el ángulo bajo demanda (Botón "Actualizar")
-function readCurrentAngle() {
-    showToast('Consultando posición actual...', 'info');
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
     
-    // El comando 'read' en Flask llamará al Pico y devolverá el ángulo en data.step
-    fetch('/action/read', { method: "POST" })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success && data.step !== undefined && data.step !== -1 && data.step !== -2) {
-                updateAngleDisplay(data.step);
-                showToast(`Posición actualizada: ${data.step.toFixed(2)}°`, 'success');
-            } else {
-                showToast(`Error al leer posición. ${data.message || 'Compruebe la conexión serial.'}`, 'warning');
-                updateAngleDisplay(NaN); // Muestra 'Error'
-            }
-        })
-        .catch(err => {
-            console.error("Error al leer ángulo:", err);
-            showToast('Error de red al consultar posición', 'danger');
-            updateAngleDisplay(NaN); // Muestra 'Error'
-        });
+    // Iconos según el tipo
+    const icons = {
+        success: '✓',
+        info: 'ℹ',
+        warning: '⚠',
+        danger: '✕' // Añadido para Stop/Error
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span>${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Mostrar el toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Ocultar y remover después de 3 segundos
+    setTimeout(() => {
+        toast.classList.add('hide');
+        setTimeout(() => {
+            container.removeChild(toast);
+        }, 300);
+    }, 3000);
 }
-
 
 function setStepSize() {
-    const stepInput = document.getElementById('step-size');
-    currentStepSize = parseInt(stepInput.value);
-    
-    fetch('/set_step_size', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step_size: currentStepSize })
-    })
-    .then(r => r.json())
-    .then(data => {
-        console.log("Tamaño de paso configurado:", data);
-        if (data.status === 'success') {
-             showToast(`Paso configurado: ${currentStepSize}°`, 'success');
-        } else {
-             showToast(`Error al configurar el paso: ${data.message || 'Desconocido'}`, 'warning');
-        }
-        
-        stepInput.style.borderColor = '#10b981';
-        setTimeout(() => {
-            stepInput.style.borderColor = '#e2e8f0';
-        }, 1000);
-    })
-    .catch(err => {
-        console.error("Error:", err);
-        showToast('Error de red al configurar el paso', 'warning');
-    });
+    const stepInput = document.getElementById('step-size');
+    currentStepSize = parseInt(stepInput.value);
+    
+    // Enviar el tamaño del paso al backend
+    fetch('/set_step_size', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ step_size: currentStepSize })
+    })
+    .then(r => r.json())
+    .then(data => {
+        console.log("Tamaño de paso configurado:", data);
+        if (data.status === 'success') {
+             showToast(`Paso configurado: ${currentStepSize}°`, 'success');
+        } else {
+             showToast(`Error al configurar el paso: ${data.message || 'Desconocido'}`, 'warning');
+        }
+        
+        // Feedback visual en el input
+        stepInput.style.borderColor = '#10b981';
+        setTimeout(() => {
+            stepInput.style.borderColor = '#e2e8f0';
+        }, 1000);
+    })
+    .catch(err => {
+        console.error("Error:", err);
+        showToast('Error de red al configurar el paso', 'warning');
+    });
 }
 
 function sendAction(action) {
-    const messages = {
-        'left': '⬅ Moviendo a la izquierda...',
-        'right': '➡ Moviendo a la derecha...',
-        'capture': '📸 Capturando...',
-        'start_loop': '🔄 Iniciando Loop...',
-        'stop': '🛑 Deteniendo Loop...'
-    };
+    // Mensajes iniciales y tipo de notificación por defecto
+    const messages = {
+        'left': '⬅ Moviendo a la izquierda...',
+        'right': '➡ Moviendo a la derecha...',
+        'capture': '📸 Capturando...',
+        'start_loop': '🔄 Iniciando Loop...',
+        'stop': '🛑 Deteniendo Loop...'
+    };
 
-    showToast(messages[action], 'info');
-    
-    fetch(`/action/${action}`, { method: "POST" })
-        .then(r => r.json())
-        .then(data => {
-            console.log("Respuesta:", data);
-            
-            let finalMessage = '';
-            let type = 'info';
+    // Muestra una notificación temporal de acción en progreso
+    showToast(messages[action], 'info');
+    
+    fetch(`/action/${action}`, { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+            console.log("Respuesta:", data);
+            
+            let finalMessage = '';
+            let type = 'info';
 
-            if (data.success) {
-                // MODIFICACIÓN CLAVE: Actualiza el display del ángulo si se recibe
-                if (data.step !== undefined && data.step !== null) {
-                    updateAngleDisplay(data.step); 
+            if (data.success) {
+                // Mensajes de éxito
+                if (action === 'capture') {
+                    finalMessage = `Imagen capturada. Posición: ${data.step}°`;
+                    type = 'success';
+                } else if (action === 'start_loop') {
+                    finalMessage = `Loop iniciado. Mensaje: ${data.message}`;
+                    type = 'warning'; // Loop iniciado es warning/info
+                } else if (action === 'stop') {
+                    finalMessage = `Loop detenido. Posición final: ${data.step}°`;
+                    type = 'danger'; // Uso rojo para STOP
+                } else if (action === 'left' || action === 'right') {
+                    finalMessage = `Movimiento OK. Nueva posición: ${data.step}°`;
+                    type = 'success';
                 }
+            } else {
+                // Mensajes de error general
+                finalMessage = `FALLO en ${action}: ${data.message || 'Error desconocido'}`;
+                type = 'danger';
+            }
 
-                if (action === 'capture') {
-                    finalMessage = `Imagen capturada. Posición: ${data.step}°`;
-                    type = 'success';
-                } else if (action === 'start_loop') {
-                    finalMessage = `Loop iniciado. Mensaje: ${data.message}`;
-                    type = 'warning';
-                } else if (action === 'stop') {
-                    finalMessage = `Loop detenido. Posición final: ${data.step}°`;
-                    type = 'danger';
-                } else if (action === 'left' || action === 'right') {
-                    finalMessage = `Movimiento OK. Nueva posición: ${data.step}°`;
-                    type = 'success';
-                }
-            } else {
-                finalMessage = `FALLO en ${action}: ${data.message || 'Error desconocido'}`;
-                type = 'danger';
-            }
+            // Reemplaza la notificación inicial con el resultado final
+            showToast(finalMessage, type);
 
-            showToast(finalMessage, type);
-
-        })
-        .catch(err => {
-            console.error("Error:", err);
-            showToast('Error de red o conexión con el servidor', 'danger');
-        });
+        })
+        .catch(err => {
+            console.error("Error:", err);
+            showToast('Error de red o conexión con el servidor', 'danger');
+        });
 }
 
 // Permitir aplicar el paso con Enter
 document.getElementById('step-size').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        setStepSize();
-    }
+    if (e.key === 'Enter') {
+        setStepSize();
+    }
 });
 
-// Inicialización: Lee la posición actual al cargar la página (buena práctica)
-window.onload = function() {
-    readCurrentAngle();
-};
+// Inicialización: Establecer el tamaño de paso inicial al cargar la página (opcional, pero buena práctica)
+// setStepSize(); 
 </script>
 
 {% endblock %}
