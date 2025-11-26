@@ -426,14 +426,7 @@ def set_step_size_route():
     response = send_serial_command(f"SET_ANGLE {step_size}", wait_for_ok=True)
     return jsonify({'status': 'success', 'step_size': step_size, 'message': response})
 
-@app.route('/angle', methods=['GET'])
-def get_angle():
-    angle_response = send_serial_command("READ", wait_for_angle=True)
-    if angle_response.startswith("ANGULO:"):
-        angle = float(angle_response.split(":")[1].strip())
-        return jsonify({"angle": angle})
-    return jsonify({"angle": None})
-
+    
 
 
 @app.route('/video_feed_color')
