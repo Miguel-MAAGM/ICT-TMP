@@ -12,8 +12,6 @@
         --accent-orange-hover: #ea580c;
         --success-green: #10b981;
         --success-green-hover: #059669;
-        --danger-red: #ef4444; /* NUEVO: Color Rojo para STOP */
-        --danger-red-hover: #dc2626; /* NUEVO: Color Rojo Hover */
         --bg-gray: #f8fafc;
         --border-gray: #e2e8f0;
         --text-dark: #1e293b;
@@ -163,18 +161,6 @@
     .btn-loop:hover {
         background: var(--accent-orange-hover);
     }
-    
-    /* NUEVO: Estilo para el botón de Stop */
-    .btn-stop {
-        background: var(--danger-red);
-        padding: 18px 35px;
-        font-size: 1.1rem;
-    }
-
-    .btn-stop:hover {
-        background: var(--danger-red-hover);
-    }
-    /* FIN NUEVO */
 
     .btn-set-step {
         background: var(--success-green);
@@ -188,7 +174,6 @@
     }
 
     /* Toast Notification Styles */
-    /* ... (Estilos de Toast sin cambios) ... */
     .toast-container {
         position: fixed;
         top: 20px;
@@ -313,43 +298,47 @@
 <div class="control-container">
     <h2 class="page-title">Control de Cámara con Step Motor</h2>
 
+    <!-- VIDEO CONTAINER -->
     <div class="video-container">
         <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
     </div>
 
+    <!-- CONTROLS SECTION -->
     <div class="controls-section">
+        <!-- Step Size Control -->
         <div class="step-control">
-            <label for="step-size">Tamaño del Paso (Grados)</label>
-            <input type="number" id="step-size" value="20" min="1" max="360" step="1">
+            <label for="step-size">Tamaño del Paso</label>
+            <input type="number" id="step-size" value="1" min="1" max="100" step="1">
             <button class="btn-set-step" onclick="setStepSize()">Aplicar</button>
         </div>
 
+        <!-- Left Arrow -->
         <button class="btn-arrow" onclick="sendAction('left')" aria-label="Mover izquierda">
             ⬅
         </button>
 
+        <!-- Capture Button -->
         <button class="btn-capture" onclick="sendAction('capture')">
-            📸 Capturar
+            Capturar
         </button>
 
+        <!-- Right Arrow -->
         <button class="btn-arrow" onclick="sendAction('right')" aria-label="Mover derecha">
             ➡
         </button>
 
+        <!-- Start Loop Button -->
         <button class="btn-loop" onclick="sendAction('start_loop')">
-            🔄 Iniciar Loop
-        </button>
-        
-        <button id="btn-stop" class="btn-stop" onclick="sendAction('stop')">
-            🛑 Detener Loop (Stop)
+            Iniciar Loop
         </button>
     </div>
 </div>
 
+<!-- Toast Container -->
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-let currentStepSize = 20; // Actualizado a 20 grados por defecto
+let currentStepSize = 1;
 
 // Función para mostrar notificaciones toast
 function showToast(message, type = 'info') {
@@ -361,8 +350,7 @@ function showToast(message, type = 'info') {
     const icons = {
         success: '✓',
         info: 'ℹ',
-        warning: '⚠',
-        danger: '✕' // Añadido para Stop/Error
+        warning: '⚠'
     };
     
     toast.innerHTML = `
@@ -401,11 +389,7 @@ function setStepSize() {
     .then(r => r.json())
     .then(data => {
         console.log("Tamaño de paso configurado:", data);
-        if (data.status === 'success') {
-             showToast(`Paso configurado: ${currentStepSize}°`, 'success');
-        } else {
-             showToast(`Error al configurar el paso: ${data.message || 'Desconocido'}`, 'warning');
-        }
+        showToast(`Tamaño de paso configurado: ${currentStepSize}`, 'success');
         
         // Feedback visual en el input
         stepInput.style.borderColor = '#10b981';
@@ -415,59 +399,36 @@ function setStepSize() {
     })
     .catch(err => {
         console.error("Error:", err);
-        showToast('Error de red al configurar el paso', 'warning');
+        showToast('Error al configurar el paso', 'warning');
     });
 }
 
 function sendAction(action) {
-    // Mensajes iniciales y tipo de notificación por defecto
+    // Mensajes personalizados para cada acción
     const messages = {
-        'left': '⬅ Moviendo a la izquierda...',
-        'right': '➡ Moviendo a la derecha...',
-        'capture': '📸 Capturando...',
-        'start_loop': '🔄 Iniciando Loop...',
-        'stop': '🛑 Deteniendo Loop...'
+        'left': '⬅ Moviendo a la izquierda',
+        'right': '➡ Moviendo a la derecha',
+        'capture': '📸 Imagen capturada',
+        'start_loop': '🔄 Loop iniciado'
     };
-
-    // Muestra una notificación temporal de acción en progreso
-    showToast(messages[action], 'info');
     
     fetch(`/action/${action}`, { method: "POST" })
         .then(r => r.json())
         .then(data => {
             console.log("Respuesta:", data);
             
-            let finalMessage = '';
-            let type = 'info';
-
-            if (data.success) {
-                // Mensajes de éxito
-                if (action === 'capture') {
-                    finalMessage = `Imagen capturada. Posición: ${data.step}°`;
-                    type = 'success';
-                } else if (action === 'start_loop') {
-                    finalMessage = `Loop iniciado. Mensaje: ${data.message}`;
-                    type = 'warning'; // Loop iniciado es warning/info
-                } else if (action === 'stop') {
-                    finalMessage = `Loop detenido. Posición final: ${data.step}°`;
-                    type = 'danger'; // Uso rojo para STOP
-                } else if (action === 'left' || action === 'right') {
-                    finalMessage = `Movimiento OK. Nueva posición: ${data.step}°`;
-                    type = 'success';
-                }
+            // Mostrar notificación según la acción
+            if (action === 'capture') {
+                showToast(messages[action], 'success');
+            } else if (action === 'start_loop') {
+                showToast(messages[action], 'warning');
             } else {
-                // Mensajes de error general
-                finalMessage = `FALLO en ${action}: ${data.message || 'Error desconocido'}`;
-                type = 'danger';
+                showToast(messages[action], 'info');
             }
-
-            // Reemplaza la notificación inicial con el resultado final
-            showToast(finalMessage, type);
-
         })
         .catch(err => {
             console.error("Error:", err);
-            showToast('Error de red o conexión con el servidor', 'danger');
+            showToast('Error al ejecutar la acción', 'warning');
         });
 }
 
@@ -477,9 +438,6 @@ document.getElementById('step-size').addEventListener('keypress', function(e) {
         setStepSize();
     }
 });
-
-// Inicialización: Establecer el tamaño de paso inicial al cargar la página (opcional, pero buena práctica)
-// setStepSize(); 
 </script>
 
 {% endblock %}
