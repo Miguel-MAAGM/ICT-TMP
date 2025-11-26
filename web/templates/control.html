@@ -313,6 +313,8 @@
 <div class="control-container">
     <h2 class="page-title">Control de Cámara con Step Motor</h2>
 
+    <h2>Ángulo actual: <span id="angle_display">--</span>°</h2>
+
     <div class="video-container">
         <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
     </div>
@@ -385,6 +387,22 @@ function showToast(message, type = 'info') {
         }, 300);
     }, 3000);
 }
+
+function updateAngle() {
+    fetch('/angle')
+    .then(response => response.json())
+    .then(data => {
+        if (data.angle !== null) {
+            document.getElementById("angle_display").textContent = data.angle.toFixed(2);
+        }
+    })
+    .catch(err => {
+        console.log("Error obteniendo ángulo:", err);
+    });
+}
+
+// Actualizar cada 300 ms
+setInterval(updateAngle, 300);
 
 function setStepSize() {
     const stepInput = document.getElementById('step-size');
