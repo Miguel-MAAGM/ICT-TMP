@@ -27,21 +27,21 @@ os.makedirs(CAPTURAS_FOLDER, exist_ok=True)
 os.makedirs(CALIB_FOLDER, exist_ok=True)
 
 # ----------------- CONFIGURACIÓN DE RESOLUCIONES -----------------
-stream_resolution = {"width": 1280, "height": 720}  
+stream_resolution = {"width": 1280, "height": 720} 
 capture_resolution = {"width": 1920, "height": 1080} 
 
 # ----------------- INICIALIZACIÓN DE LA CÁMARA RASPBERRY PI -----------------
 # Es importante inicializar picam2 aquí para que las funciones lo usen
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(
-    main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
+    main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
 ))
 picam2.start()
 
 color_thresholds = {
-    "r_min": 0, "r_max": 255,
-    "g_min": 0, "g_max": 255,
-    "b_min": 0, "b_max": 255
+    "r_min": 0, "r_max": 255,
+    "g_min": 0, "g_max": 255,
+    "b_min": 0, "b_max": 255
 }
 
 # ----------------- VARIABLES GLOBALES PARA CONTROL -----------------
@@ -51,155 +51,152 @@ step_size = 20
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
 
 def send_serial_command(command):
-    """Envía un comando al Pico y espera una respuesta (opcional)."""
-    global ser
-    if ser is None:
-        return "ERROR_SERIAL_OFFLINE"
+    """Envía un comando al Pico y espera una respuesta (opcional)."""
+    global ser
+    if ser is None:
+        return "ERROR_SERIAL_OFFLINE"
 
-    try:
-        ser.write(f"{command}\n".encode('utf-8')) 
-        print(f"<- Comando enviado: {command}")
-        
-        if command in ["LEFT", "RIGHT", "SET_ANGLE", "LOOP", "STOP", "READ"]:
-            response = ser.readline().decode('utf-8').strip()
-            print(f"-> Respuesta recibida: {response}")
-            return response
-        
-        return "OK"
+    try:
+        ser.write(f"{command}\n".encode('utf-8')) 
+        print(f"<- Comando enviado: {command}")
+        
+        if command in ["LEFT", "RIGHT", "SET_ANGLE", "LOOP", "STOP", "READ"]:
+            response = ser.readline().decode('utf-8').strip()
+            print(f"-> Respuesta recibida: {response}")
+            return response
+        
+        return "OK"
 
-    except Exception as e:
-        print(f"⚠️ Error en comunicación serial: {e}")
+    except Exception as e:
+        print(f"⚠️ Error en comunicación serial: {e}")
         # Intentamos cerrar y anular la conexión fallida
         try:
             ser.close()
         except:
             pass
-        global ser
+        global ser
         ser = None
-        return f"ERROR: {e}"
+        return f"ERROR: {e}"
 
 # ----------------- FUNCIONES DE CÁMARA (sin cambios) -----------------
 
 def gen_frames():
-    while True:
-        frame = picam2.capture_array()
-        if frame is not None:
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    while True:
+        frame = picam2.capture_array()
+        if frame is not None:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 def generate_color_frames():
-    while True:
-        frame = picam2.capture_array()
-        if frame is None:
-            break
-        frame_rgb = frame 
-        mask = (frame_rgb[:,:,0] >= color_thresholds["r_min"]) & (frame_rgb[:,:,0] <= color_thresholds["r_max"]) & \
-               (frame_rgb[:,:,1] >= color_thresholds["g_min"]) & (frame_rgb[:,:,1] <= color_thresholds["g_max"]) & \
-               (frame_rgb[:,:,2] >= color_thresholds["b_min"]) & (frame_rgb[:,:,2] <= color_thresholds["b_max"])
-        filtered = np.zeros_like(frame)
-        filtered[mask] = [255, 255, 255]
-        _, buffer = cv2.imencode('.jpg', filtered)
-        frame_bytes = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    while True:
+        frame = picam2.capture_array()
+        if frame is None:
+            break
+        frame_rgb = frame 
+        mask = (frame_rgb[:,:,0] >= color_thresholds["r_min"]) & (frame_rgb[:,:,0] <= color_thresholds["r_max"]) & \
+               (frame_rgb[:,:,1] >= color_thresholds["g_min"]) & (frame_rgb[:,:,1] <= color_thresholds["g_max"]) & \
+               (frame_rgb[:,:,2] >= color_thresholds["b_min"]) & (frame_rgb[:,:,2] <= color_thresholds["b_max"])
+        filtered = np.zeros_like(frame)
+        filtered[mask] = [255, 255, 255]
+        _, buffer = cv2.imencode('.jpg', filtered)
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 def capture_high_res_frame():
-    picam2.stop()
-    capture_config = picam2.create_still_configuration(
-        main={"format": "RGB888", "size": (capture_resolution["width"], capture_resolution["height"])}
-    )
-    picam2.configure(capture_config)
-    picam2.start()
-    time.sleep(0.1)
-    frame = picam2.capture_array()
-    picam2.stop()
-    picam2.configure(picam2.create_preview_configuration(
-        main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
-    ))
-    picam2.start()
-    return frame is not None, frame
+    picam2.stop()
+    capture_config = picam2.create_still_configuration(
+        main={"format": "RGB888", "size": (capture_resolution["width"], capture_resolution["height"])}
+    )
+    picam2.configure(capture_config)
+    picam2.start()
+    time.sleep(0.1)
+    frame = picam2.capture_array()
+    picam2.stop()
+    picam2.configure(picam2.create_preview_configuration(
+        main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
+    ))
+    picam2.start()
+    return frame is not None, frame
 
 # ----------------- RUTAS DE FLASK -----------------
 
 @app.route('/')
 def index():
-    # Esta es la ruta principal que faltaba o que no se reconoció al inicio
-    return render_template("index.html")
+    return render_template("index.html")
 
 @app.route('/camera_setup')
 def camera_setup():
-    return render_template("camera_setup.html")
-
-# ... (El resto de las rutas de configuración y calibración se mantienen sin cambios) ...
+    return render_template("camera_setup.html")
 
 @app.route('/camera/get_resolutions', methods=['GET'])
 def get_resolutions():
-    return jsonify({
-        "success": True,
-        "stream_width": stream_resolution["width"],
-        "stream_height": stream_resolution["height"],
-        "capture_width": capture_resolution["width"],
-        "capture_height": capture_resolution["height"]
-    })
+    return jsonify({
+        "success": True,
+        "stream_width": stream_resolution["width"],
+        "stream_height": stream_resolution["height"],
+        "capture_width": capture_resolution["width"],
+        "capture_height": capture_resolution["height"]
+    })
 
 @app.route('/camera/set_stream_resolution', methods=['POST'])
 def set_stream_resolution():
-    global stream_resolution
-    data = request.get_json()
-    width = int(data.get('width', 1280))
-    height = int(data.get('height', 720))
-    print(f"🎥 Cambiando resolución de streaming a {width}x{height}")
-    stream_resolution["width"] = width
-    stream_resolution["height"] = height
-    picam2.stop()
-    picam2.configure(picam2.create_preview_configuration(
-        main={"format": "RGB888", "size": (width, height)}
-    ))
-    picam2.start()
-    actual_width = width
-    actual_height = height
-    print(f"✅ Resolución aplicada: {actual_width}x{actual_height}")
-    return jsonify({
-        "success": True,
-        "message": f"Resolución de streaming cambiada a {actual_width}x{actual_height}",
-        "actual_width": actual_width,
-        "actual_height": actual_height
-    })
+    global stream_resolution
+    data = request.get_json()
+    width = int(data.get('width', 1280))
+    height = int(data.get('height', 720))
+    print(f"🎥 Cambiando resolución de streaming a {width}x{height}")
+    stream_resolution["width"] = width
+    stream_resolution["height"] = height
+    picam2.stop()
+    picam2.configure(picam2.create_preview_configuration(
+        main={"format": "RGB888", "size": (width, height)}
+    ))
+    picam2.start()
+    actual_width = width
+    actual_height = height
+    print(f"✅ Resolución aplicada: {actual_width}x{actual_height}")
+    return jsonify({
+        "success": True,
+        "message": f"Resolución de streaming cambiada a {actual_width}x{actual_height}",
+        "actual_width": actual_width,
+        "actual_height": actual_height
+    })
 
 @app.route('/camera/set_capture_resolution', methods=['POST'])
 def set_capture_resolution():
-    global capture_resolution
-    data = request.get_json()
-    width = int(data.get('width', 1920))
-    height = int(data.get('height', 1080))
-    print(f"📸 Resolución de captura configurada a {width}x{height}")
-    capture_resolution["width"] = width
-    capture_resolution["height"] = height
-    return jsonify({
-        "success": True,
-        "message": f"Resolución de captura configurada a {width}x{height}"
-    })
+    global capture_resolution
+    data = request.get_json()
+    width = int(data.get('width', 1920))
+    height = int(data.get('height', 1080))
+    print(f"📸 Resolución de captura configurada a {width}x{height}")
+    capture_resolution["width"] = width
+    capture_resolution["height"] = height
+    return jsonify({
+        "success": True,
+        "message": f"Resolución de captura configurada a {width}x{height}"
+    })
 
 @app.route('/camera/test_capture', methods=['POST'])
 def test_capture():
-    print("📷 Realizando captura de prueba...")
-    success, frame = capture_high_res_frame()
-    if not success:
-        return jsonify({"success": False, "message": "Error al capturar imagen"})
-    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    filename = "preview_capture.jpg"
-    path = os.path.join(CAPTURAS_FOLDER, filename)
-    cv2.imwrite(path, frame_bgr)
-    actual_height, actual_width = frame.shape[:2]
-    print(f"✅ Captura de prueba guardada: {actual_width}x{actual_height}")
-    return jsonify({
-        "success": True,
-        "url": url_for('static', filename=f"capturas/{filename}"),
-        "width": actual_width,
-        "height": actual_height
-    })
+    print("📷 Realizando captura de prueba...")
+    success, frame = capture_high_res_frame()
+    if not success:
+        return jsonify({"success": False, "message": "Error al capturar imagen"})
+    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    filename = "preview_capture.jpg"
+    path = os.path.join(CAPTURAS_FOLDER, filename)
+    cv2.imwrite(path, frame_bgr)
+    actual_height, actual_width = frame.shape[:2]
+    print(f"✅ Captura de prueba guardada: {actual_width}x{actual_height}")
+    return jsonify({
+        "success": True,
+        "url": url_for('static', filename=f"capturas/{filename}"),
+        "width": actual_width,
+        "height": actual_height
+    })
 
 @app.route('/calibration/capture', methods=['POST'])
 def capture_calibration_image():
@@ -312,73 +309,73 @@ def calibration_status():
 
 @app.route('/action/<cmd>', methods=['POST'])
 def control_action(cmd):
-    global step_counter
-    
-    if cmd == "left":
-        print(f"🟢 Botón izquierda presionado (paso: {step_size} grados)")
-        response = send_serial_command("LEFT") 
-        
-    elif cmd == "right":
-        print(f"🟢 Botón derecha presionado (paso: {step_size} grados)")
-        response = send_serial_command("RIGHT")
+    global step_counter
+    
+    if cmd == "left":
+        print(f"🟢 Botón izquierda presionado (paso: {step_size} grados)")
+        response = send_serial_command("LEFT") 
+        
+    elif cmd == "right":
+        print(f"🟢 Botón derecha presionado (paso: {step_size} grados)")
+        response = send_serial_command("RIGHT")
 
-    if cmd in ["left", "right"]:
-        try:
-            angle_response = send_serial_command("READ")
-            if angle_response.startswith("ANGULO:"):
-                step_counter = float(angle_response.split(":")[1].strip())
-            else:
-                step_counter = -1 
-        except Exception as e:
-            print(f"Error al leer ángulo: {e}")
-            step_counter = -2
-        
-        return jsonify({"success": True, "step": step_counter, "message": response})
-        
-    elif cmd == "capture":
-        print("🟢 Botón capture presionado")
-        angle_response = send_serial_command("READ")
-        current_step = step_counter
-        
-        if angle_response.startswith("ANGULO:"):
-            current_step = float(angle_response.split(":")[1].strip())
+    if cmd in ["left", "right"]:
+        try:
+            angle_response = send_serial_command("READ")
+            if angle_response.startswith("ANGULO:"):
+                step_counter = float(angle_response.split(":")[1].strip())
+            else:
+                step_counter = -1 
+        except Exception as e:
+            print(f"Error al leer ángulo: {e}")
+            step_counter = -2
+        
+        return jsonify({"success": True, "step": step_counter, "message": response})
+        
+    elif cmd == "capture":
+        print("🟢 Botón capture presionado")
+        angle_response = send_serial_command("READ")
+        current_step = step_counter
+        
+        if angle_response.startswith("ANGULO:"):
+            current_step = float(angle_response.split(":")[1].strip())
 
-        success, frame_rgb = capture_high_res_frame()
-        if success:
-            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-            
-            filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            path = os.path.join(CAPTURAS_FOLDER, filename)
-            cv2.imwrite(path, frame_bgr)
-            
-            return jsonify({
-                "success": True,
-                "step": current_step,
-                "url": url_for('static', filename=f"capturas/{filename}")
-            })
-        return jsonify({"success": False, "step": current_step})
-    
-    elif cmd == "start_loop":
-        print("🟢 Botón start loop presionado")
-        response = send_serial_command("LOOP")
-        return jsonify({"success": True, "step": step_counter, "message": response})
-        
-    elif cmd == "stop":
-        print("🔴 Botón STOP presionado")
-        response = send_serial_command("STOP")
-        return jsonify({"success": True, "step": step_counter, "message": response})
-        
-    return jsonify({"success": True, "step": step_counter})
+        success, frame_rgb = capture_high_res_frame()
+        if success:
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            
+            filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            path = os.path.join(CAPTURAS_FOLDER, filename)
+            cv2.imwrite(path, frame_bgr)
+            
+            return jsonify({
+                "success": True,
+                "step": current_step,
+                "url": url_for('static', filename=f"capturas/{filename}")
+            })
+        return jsonify({"success": False, "step": current_step})
+    
+    elif cmd == "start_loop":
+        print("🟢 Botón start loop presionado")
+        response = send_serial_command("LOOP")
+        return jsonify({"success": True, "step": step_counter, "message": response})
+        
+    elif cmd == "stop":
+        print("🔴 Botón STOP presionado")
+        response = send_serial_command("STOP")
+        return jsonify({"success": True, "step": step_counter, "message": response})
+        
+    return jsonify({"success": True, "step": step_counter})
 
 
 @app.route('/set_step_size', methods=['POST'])
 def set_step_size_route():
-    global step_size
-    data = request.get_json()
-    step_size = int(data.get('step_size', 20))
-    print(f"🔧 Tamaño de paso configurado (grados): {step_size}")
-    response = send_serial_command(f"SET_ANGLE {step_size}")
-    return jsonify({'status': 'success', 'step_size': step_size, 'message': response})
+    global step_size
+    data = request.get_json()
+    step_size = int(data.get('step_size', 20))
+    print(f"🔧 Tamaño de paso configurado (grados): {step_size}")
+    response = send_serial_command(f"SET_ANGLE {step_size}")
+    return jsonify({'status': 'success', 'step_size': step_size, 'message': response})
 
 @app.route('/video_feed_color')
 def video_feed_color():
