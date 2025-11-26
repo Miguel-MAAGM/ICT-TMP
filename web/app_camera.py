@@ -51,16 +51,14 @@ step_size = 20
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
 
 def send_serial_command(command):
-    # ¡ESTA DEBE SER LA PRIMERA LÍNEA QUE AFECTE A 'ser'!
-    global ser 
+    global ser  # MUEVE esta línea AL PRINCIPIO de la función, antes de usar 'ser'
     
     """Envía un comando al Pico y espera una respuesta (opcional)."""
-    # Si la usas en la línea anterior, está bien, pero no debe haber otras líneas de código entre def y global
     if ser is None:
         return "ERROR_SERIAL_OFFLINE"
 
     try:
-        ser.write(f"{command}\n".encode('utf-8')) 
+        ser.write(f"{command}\n".encode('utf-8'))
         print(f"<- Comando enviado: {command}")
         
         if command in ["LEFT", "RIGHT", "SET_ANGLE", "LOOP", "STOP", "READ"]:
@@ -77,9 +75,9 @@ def send_serial_command(command):
             ser.close()
         except:
             pass
-        global ser
-        ser = None
+        ser = None  # YA ESTÁ GLOBAL ARRIBA
         return f"ERROR: {e}"
+
 
 # ----------------- FUNCIONES DE CÁMARA (sin cambios) -----------------
 
