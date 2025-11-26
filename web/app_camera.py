@@ -51,8 +51,11 @@ step_size = 20
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
 
 def send_serial_command(command):
+    # ¡ESTA DEBE SER LA PRIMERA LÍNEA QUE AFECTE A 'ser'!
+    global ser 
+    
     """Envía un comando al Pico y espera una respuesta (opcional)."""
-    global ser
+    # Si la usas en la línea anterior, está bien, pero no debe haber otras líneas de código entre def y global
     if ser is None:
         return "ERROR_SERIAL_OFFLINE"
 
