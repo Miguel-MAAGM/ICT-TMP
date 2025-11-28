@@ -63,8 +63,24 @@ MIN_TIME_BETWEEN_CAPTURES = 2.0  # Segundos entre capturas automáticas
 
 import threading
 
+SERIAL_LOG = []
+MAX_LOG_LINES = 150
+
+def add_serial_log(msg):
+    SERIAL_LOG.append(msg)
+    if len(SERIAL_LOG) > MAX_LOG_LINES:
+        SERIAL_LOG.pop(0)
+
+@app.route("/serial_log")
+def serial_log_page():
+    return "<br>".join(SERIAL_LOG)
+
+# ======================== SERIAL LISTENER (CRÍTICO) ==========================
 def serial_listener():
     global ser
+
+    print("🔵 Listener serial iniciado…")
+
     while True:
         try:
             if ser is None or not ser.is_open:
@@ -72,42 +88,45 @@ def serial_listener():
                 continue
 
             raw = ser.readline()
-
-            # Si no hay nada, no procesar
             if not raw:
                 continue
 
             try:
                 line = raw.decode("utf-8", errors="ignore").strip()
-            except Exception:
+            except:
                 continue
 
-            # Filtrar líneas vacías o ruido
-            if line == "" or len(line) < 3:
+            if line == "" or len(line) < 2:
                 continue
 
-            print(f"[SERIAL] {line}")
+            msg = f"[SERIAL] {line}"
+            print(msg)
+            add_serial_log(msg)
 
-            # Detectar comando de captura automático
+            # ===================== FOTO AUTOMÁTICA DESDE PICO =====================
             if line.startswith("FOTO"):
-                # FOTO <ángulo>
                 try:
                     valor = float(line.split()[1])
                 except:
                     continue
 
-                # Capturar imagen en alta resolución
                 success, frame_rgb = capture_high_res_frame()
                 if success:
                     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
                     filename = f"foto_{valor:.2f}.jpg"
                     path = os.path.join(FOTOS_LOOP_FOLDER, filename)
                     cv2.imwrite(path, frame_bgr)
-                    print(f"📸 FOTO AUTOMÁTICA GUARDADA -> {filename}")
+
+                    log = f"📸 FOTO AUTOMÁTICA GUARDADA: {filename}"
+                    print(log)
+                    add_serial_log(log)
 
         except Exception as e:
-            print(f"[SERIAL LISTENER ERROR] {e}")
+            print(f"[ERROR SERIAL LISTENER] {e}")
+            add_serial_log(f"[ERROR SERIAL LISTENER] {e}")
             time.sleep(0.1)
+
 
 
 
@@ -743,7 +762,7 @@ def view_plot(nombre):
                 z.append(float(row["z"]))
     return render_template("view_plot.html", nombre=nombre, x=x, y=y, z=z)
 
-if __name__ == '__main__':
+'''if __name__ == '__main__':
     # ======================== INICIALIZACIÓN SERIAL SEGURO (MOVIMIENTO) ==========================
     # La conexión serial se realiza justo antes de ejecutar Flask. 
     # Si falla, ser es None, pero Flask se inicia.
@@ -768,4 +787,24 @@ if __name__ == '__main__':
         if ser is not None and ser.is_open:
             ser.close()
             print("Puerto serial cerrado.")
-        cv2.destroyAllWindows()
+        cv2.destroyAllWindows()'''
+
+
+if __name__ == '__main__':
+
+    # Intentar abrir puerto
+    try:
+        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
+        print(f"✅ Serial conectado en {SERIAL_PORT}")
+        time.sleep(2)
+    except Exception as e:
+        print(f"❌ Error serial: {e}")
+        ser = None
+
+    # Iniciar thread listener
+    listener = threading.Thread(target=serial_listener, daemon=True)
+    listener.start()
+    print("🔵 Hilo SERIAL LISTENER iniciado")
+
+    # Ejecutar Flask
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
