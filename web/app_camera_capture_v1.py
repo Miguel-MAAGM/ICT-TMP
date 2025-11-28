@@ -61,25 +61,49 @@ import threading
 def serial_listener():
     global ser
     while True:
-        if ser is None: 
-            time.sleep(1)
-            continue
+        try:
+            if ser is None or not ser.is_open:
+                time.sleep(0.1)
+                continue
 
-        line = ser.readline().decode().strip()
-        if line.startswith("FOTO"):
-            valor = float(line.split()[1])
+            raw = ser.readline()
 
-            # Capturar imagen automáticamente
-            success, frame_rgb = capture_high_res_frame()
-            if success:
-                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                filename = f"foto_{valor:.2f}.jpg"
-                path = os.path.join(CAPTURAS_FOLDER, filename)
-                cv2.imwrite(path, frame_bgr)
-                print(f"📸 FOTO AUTOMÁTICA GUARDADA: {filename}")
+            # Si no hay nada, no procesar
+            if not raw:
+                continue
 
-listener_thread = threading.Thread(target=serial_listener, daemon=True)
-listener_thread.start()
+            try:
+                line = raw.decode("utf-8", errors="ignore").strip()
+            except Exception:
+                continue
+
+            # Filtrar líneas vacías o ruido
+            if line == "" or len(line) < 3:
+                continue
+
+            print(f"[SERIAL] {line}")
+
+            # Detectar comando de captura automático
+            if line.startswith("FOTO"):
+                # FOTO <ángulo>
+                try:
+                    valor = float(line.split()[1])
+                except:
+                    continue
+
+                # Capturar imagen en alta resolución
+                success, frame_rgb = capture_high_res_frame()
+                if success:
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                    filename = f"foto_{valor:.2f}.jpg"
+                    path = os.path.join(CAPTURAS_FOLDER, filename)
+                    cv2.imwrite(path, frame_bgr)
+                    print(f"📸 FOTO AUTOMÁTICA GUARDADA -> {filename}")
+
+        except Exception as e:
+            print(f"[SERIAL LISTENER ERROR] {e}")
+            time.sleep(0.1)
+
 
 
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
