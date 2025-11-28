@@ -54,6 +54,11 @@ auto_calib_config = {"rows": 6, "cols": 7}
 last_auto_capture_time = 0
 MIN_TIME_BETWEEN_CAPTURES = 2.0  # Segundos entre capturas automáticas 
 
+# Variables globales para la calibración
+calibration_images = []
+objpoints = []
+imgpoints = []
+
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
 
 def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeout=3.0):
@@ -121,18 +126,21 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
 
 
 
-# ----------------- FUNCIONES DE CÁMARA (sin cambios) -----------------
+# ----------------- FUNCIONES DE CÁMARA (con correcciones) -----------------
 
 def gen_frames():
     global is_auto_calibrating, last_auto_capture_time, calibration_images, objpoints, imgpoints
     
     while True:
-        frame = picam2.capture_array()
+        frame = picam2.capture_array() # frame aquí es RGB888
         if frame is not None:
+            
+            frame_to_stream = frame
+            
             # Si estamos en modo calibración automática
             if is_auto_calibrating:
                 try:
-                    # Picam2 da RGB, OpenCV usa BGR para procesamiento correcto de colores
+                    # 1. Convertir RGB (de picam2) a BGR (para procesamiento OpenCV)
                     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
                     
@@ -153,10 +161,6 @@ def gen_frames():
                         
                         # Lógica de autoguardado
                         if time.time() - last_auto_capture_time > MIN_TIME_BETWEEN_CAPTURES:
-                            # Guardar imagen
-                            # Nota: Guardamos la imagen LIMPIA (frame original), no la pintada
-                            # Pero necesitamos convertir el frame original RGB a BGR para guardar con cv2
-                            clean_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                             
                             # Preparar datos para calibración
                             objp = np.zeros((rows * cols, 3), np.float32)
@@ -165,57 +169,58 @@ def gen_frames():
                             objpoints.append(objp)
                             imgpoints.append(corners2)
                             
-                            # Guardar archivo (usamos la versión pintada para el feedback visual en carpeta o la limpia?)
-                            # Normalmente se prefiere la limpia para re-procesar, pero aquí ya procesamos.
-                            # Guardemos la imagen con esquinas dibujadas para que el usuario vea qué detectó, 
-                            # O mejor la limpia si quisiéramos recalcular. 
-                            # El código original guarda 'img_with_corners'. Haremos lo mismo.
-                            
-                            img_with_corners = clean_bgr.copy()
-                            cv2.drawChessboardCorners(img_with_corners, (cols, rows), corners2, found)
-                            
+                            # Guardar archivo: usamos la versión pintada (que es BGR)
                             filename = f"calib_auto_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
                             path = os.path.join(CAPTURAS_FOLDER, filename)
-                            cv2.imwrite(path, img_with_corners)
+                            cv2.imwrite(path, frame_bgr)
                             
                             calibration_images.append(path)
                             last_auto_capture_time = time.time()
                             print(f"✅ [AUTO] Captura guardada: {filename} ({len(calibration_images)} total)")
-                    
-                    # Convertir de nuevo a RGB para el streaming (o codificar BGR directamente si OpenCV lo maneja)
-                    # cv2.imencode espera BGR por defecto.
-                    # Si frame era RGB, y lo convertimos a BGR para dibujar, ahora frame_bgr es BGR correcto.
-                    frame = frame_bgr
-                    
+                            
+                    # Si estamos en auto-calibración, el frame a streamear es el BGR procesado
+                    frame_to_stream = frame_bgr
+                
                 except Exception as e:
                     print(f"Error en auto-calibración: {e}")
-
-            # Codificar para streaming
-            # Si frame viene de picam2 es RGB. Si pasó por auto-calib es BGR.
-            # cv2.imencode asume entrada BGR.
-            # CASO 1: Normal (RGB de picam) -> imencode cree que es BGR -> Colores invertidos en stream (R<->B).
-            # CASO 2: Auto (BGR procesado) -> imencode cree que es BGR -> Colores correctos.
-            # Para arreglar el stream normal, deberíamos convertir RGB->BGR siempre.
+            
+            # --- CORRECCIÓN CLAVE PARA EL COLOR DEL STREAM ---
+            # Si el frame aún está en formato RGB (es decir, NO pasó por el bloque de auto-calibración),
+            # lo convertimos a BGR para que cv2.imencode lo interprete correctamente.
+            
+            # frame_to_stream es RGB si is_auto_calibrating es False
+            # frame_to_stream es BGR si is_auto_calibrating es True
+            
             if not is_auto_calibrating:
-                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                 frame_to_stream = cv2.cvtColor(frame_to_stream, cv2.COLOR_RGB2BGR)
 
-            ret, buffer = cv2.imencode('.jpg', frame)
+            # frame_to_stream ahora siempre es BGR (o BGR procesado)
+            ret, buffer = cv2.imencode('.jpg', frame_to_stream)
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 def generate_color_frames():
     while True:
-        frame = picam2.capture_array()
+        frame = picam2.capture_array() # frame aquí es RGB888
         if frame is None:
             break
+            
         frame_rgb = frame 
+        
+        # Procesamiento en RGB
         mask = (frame_rgb[:,:,0] >= color_thresholds["r_min"]) & (frame_rgb[:,:,0] <= color_thresholds["r_max"]) & \
                (frame_rgb[:,:,1] >= color_thresholds["g_min"]) & (frame_rgb[:,:,1] <= color_thresholds["g_max"]) & \
                (frame_rgb[:,:,2] >= color_thresholds["b_min"]) & (frame_rgb[:,:,2] <= color_thresholds["b_max"])
-        filtered = np.zeros_like(frame)
+        
+        filtered = np.zeros_like(frame) # filtered es RGB
         filtered[mask] = [255, 255, 255]
-        _, buffer = cv2.imencode('.jpg', filtered)
+        
+        # --- CORRECCIÓN CLAVE PARA EL COLOR DEL STREAM DE FILTRO ---
+        # Convertir la imagen procesada de RGB a BGR antes de codificar
+        filtered_bgr = cv2.cvtColor(filtered, cv2.COLOR_RGB2BGR)
+        
+        _, buffer = cv2.imencode('.jpg', filtered_bgr)
         frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
@@ -234,7 +239,7 @@ def capture_high_res_frame():
         main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
     ))
     picam2.start()
-    return frame is not None, frame
+    return frame is not None, frame # frame es RGB
 
 # ----------------- RUTAS DE FLASK -----------------
 
@@ -263,13 +268,13 @@ def set_stream_resolution():
     width = int(data.get('width', 1280))
     height = int(data.get('height', 720))
     print(f"🎥 Cambiando resolución de streaming a {width}x{height}")
-    stream_resolution["width"] = width
-    stream_resolution["height"] = height
     picam2.stop()
     picam2.configure(picam2.create_preview_configuration(
         main={"format": "RGB888", "size": (width, height)}
     ))
     picam2.start()
+    stream_resolution["width"] = width
+    stream_resolution["height"] = height
     actual_width = width
     actual_height = height
     print(f"✅ Resolución aplicada: {actual_width}x{actual_height}")
@@ -297,14 +302,17 @@ def set_capture_resolution():
 @app.route('/camera/test_capture', methods=['POST'])
 def test_capture():
     print("📷 Realizando captura de prueba...")
-    success, frame = capture_high_res_frame()
+    success, frame_rgb = capture_high_res_frame() # frame_rgb es RGB
     if not success:
         return jsonify({"success": False, "message": "Error al capturar imagen"})
-    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    
+    # Convertir a BGR para guardar correctamente con cv2.imwrite
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR) 
     filename = "preview_capture.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
-    actual_height, actual_width = frame.shape[:2]
+    
+    actual_height, actual_width = frame_bgr.shape[:2]
     print(f"✅ Captura de prueba guardada: {actual_width}x{actual_height}")
     return jsonify({
         "success": True,
@@ -322,16 +330,14 @@ def capture_calibration_image():
     
     print(f"📸 Capturando imagen de calibración. Tamaño solicitado: {input_size}")
     
-    success, frame_rgb = capture_high_res_frame()
+    success, frame_rgb = capture_high_res_frame() # frame_rgb es RGB
     if not success:
         return jsonify({"success": False, "message": "Error al capturar imagen"})
     
-    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR) # frame_bgr es BGR (para OpenCV)
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     
     # Lista de tamaños a probar
-    # 1. Tamaño exacto ingresado (por si el usuario puso esquinas internas)
-    # 2. Tamaño -1 (por si el usuario contó los cuadros blancos/negros)
     sizes_to_try = [
         tuple(input_size),
         (input_size[0] - 1, input_size[1] - 1)
@@ -365,12 +371,12 @@ def capture_calibration_image():
         objpoints.append(objp)
         imgpoints.append(corners2)
         
-        img_with_corners = frame_bgr.copy()
+        img_with_corners = frame_bgr.copy() # Copia en BGR
         cv2.drawChessboardCorners(img_with_corners, final_size, corners2, ret)
         
         filename = f"calib_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         path = os.path.join(CAPTURAS_FOLDER, filename)
-        cv2.imwrite(path, img_with_corners)
+        cv2.imwrite(path, img_with_corners) # Guarda en BGR
         calibration_images.append(path)
         
         return jsonify({
@@ -395,12 +401,16 @@ def compute_calibration():
             "message": f"Se necesitan al menos 10 imágenes para una buena calibración. Tienes {len(calibration_images)}."
         })
     print(f"🔧 Calculando calibración con {len(calibration_images)} imágenes...")
-    success, frame_rgb = capture_high_res_frame()
+    
+    # Necesitamos una imagen de referencia para el tamaño (no para el cálculo en sí)
+    success, frame_rgb = capture_high_res_frame() 
     if not success:
         return jsonify({"success": False, "message": "Error al acceder a la cámara"})
+        
     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-    img_shape = gray.shape[::-1]
+    img_shape = gray.shape[::-1] # (width, height)
+    
     ret, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.calibrateCamera(
         objpoints, imgpoints, img_shape, None, None
     )
@@ -469,15 +479,6 @@ def start_auto_calibration():
     global is_auto_calibrating, auto_calib_config, last_auto_capture_time
     data = request.get_json()
     
-    # Recibir configuración (columnas, filas)
-    # Nota: El usuario ingresa cuadros o esquinas. Usaremos la lógica "inteligente" si falla?
-    # Para video en tiempo real, es mejor ser explícito. 
-    # Asumiremos que el frontend envía las ESQUINAS INTERNAS correctas o lo que el usuario puso.
-    # Podemos aplicar la misma lógica de "intentar N y N-1" pero en tiempo real es costoso.
-    # Por simplicidad, confiaremos en lo que envía el frontend (que ya validamos que puede ser confuso).
-    # Mejor: El frontend debería enviar lo que el usuario puso, y aquí podemos intentar ajustar si no detecta nada?
-    # Vamos a usar lo que envía el frontend directamente.
-    
     cols = int(data.get('cols', 7))
     rows = int(data.get('rows', 6))
     
@@ -533,9 +534,9 @@ def control_action(cmd):
         if angle_response.startswith("ANGULO:"):
             current_step = float(angle_response.split(":")[1].strip())
 
-        success, frame_rgb = capture_high_res_frame()
+        success, frame_rgb = capture_high_res_frame() # frame_rgb es RGB
         if success:
-            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR) # Convertir a BGR para guardar
             filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             path = os.path.join(CAPTURAS_FOLDER, filename)
             cv2.imwrite(path, frame_bgr)
@@ -610,10 +611,11 @@ def nueva_calibracion_color():
 @app.route('/capture', methods=['POST'])
 def capture():
     print("Capturando imagen...")
-    success, frame_rgb = capture_high_res_frame()
+    success, frame_rgb = capture_high_res_frame() # frame_rgb es RGB
     if not success:
         return jsonify({"success": False})
-    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+        
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR) # Convertir a BGR para guardar
     filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
@@ -624,13 +626,23 @@ def capture():
 
 @app.route("/ajustes/camara/cancelar")
 def cancelar_calibracion():
+    # Eliminamos las capturas de calibración para reiniciar el proceso
+    global calibration_images, objpoints, imgpoints
+    calibration_images = []
+    objpoints = []
+    imgpoints = []
+    
+    # También limpiamos la carpeta de capturas
     folder = CAPTURAS_FOLDER
     if os.path.exists(folder):
         for file in os.listdir(folder):
-            try:
-                os.remove(os.path.join(folder, file))
-            except Exception as e:
-                print(f"Error eliminando {file}: {e}")
+            # Dejamos solo los archivos de calibración (calib_*.jpg) para eliminar
+            if file.startswith("calib_") or file.startswith("preview_"):
+                try:
+                    os.remove(os.path.join(folder, file))
+                except Exception as e:
+                    print(f"Error eliminando {file}: {e}")
+                    
     return redirect(url_for("ajustes"))
 
 @app.route('/control')
@@ -651,9 +663,16 @@ def ajustes():
 @app.route('/ajustes/camara/nueva')
 def nueva_calibracion():
     global calibration_images, objpoints, imgpoints
+    # Limpieza inicial
     calibration_images = []
     objpoints = []
     imgpoints = []
+    
+    # Intenta obtener el estado actual de las capturas si la página se recarga, 
+    # pero para el reinicio limpio, mejor redirigir a `cancelar_calibracion`
+    # El frontend se encargará de esto al usar el botón "Cancelar"
+    
+    # Para asegurar que la galería inicie vacía, el polling del frontend lo maneja
     return render_template("nueva_calibracion.html")
 
 @app.route('/video_feed')
