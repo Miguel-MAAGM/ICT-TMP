@@ -133,7 +133,7 @@ def gen_frames():
             if is_auto_calibrating:
                 try:
                     # Picam2 da RGB, OpenCV usa BGR para procesamiento correcto de colores
-                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    frame_bgr = frame #cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
                     
                     rows = auto_calib_config.get("rows", 6)
@@ -156,7 +156,7 @@ def gen_frames():
                             # Guardar imagen
                             # Nota: Guardamos la imagen LIMPIA (frame original), no la pintada
                             # Pero necesitamos convertir el frame original RGB a BGR para guardar con cv2
-                            clean_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                            clean_bgr = frame # cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                             
                             # Preparar datos para calibración
                             objp = np.zeros((rows * cols, 3), np.float32)
@@ -197,7 +197,7 @@ def gen_frames():
             # CASO 2: Auto (BGR procesado) -> imencode cree que es BGR -> Colores correctos.
             # Para arreglar el stream normal, deberíamos convertir RGB->BGR siempre.
             if not is_auto_calibrating:
-                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                 frame = frame #cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             ret, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
@@ -221,33 +221,19 @@ def generate_color_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 def capture_high_res_frame():
-    """Captura un frame en alta resolución usando Picamera2"""
-    
-    # Detener la configuración de streaming
     picam2.stop()
-    
-    # Crear una configuración de captura con la resolución deseada
     capture_config = picam2.create_still_configuration(
         main={"format": "RGB888", "size": (capture_resolution["width"], capture_resolution["height"])}
     )
-    
-    # Aplicar la configuración de captura
     picam2.configure(capture_config)
     picam2.start()
-    
-    # Esperar un poco para que la cámara se ajuste
     time.sleep(0.1)
-    
-    # Capturar frame como un array numpy
     frame = picam2.capture_array()
-    
-    # Detener y restaurar configuración de streaming
     picam2.stop()
     picam2.configure(picam2.create_preview_configuration(
         main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
     ))
     picam2.start()
-    
     return frame is not None, frame
 
 # ----------------- RUTAS DE FLASK -----------------
@@ -314,7 +300,7 @@ def test_capture():
     success, frame = capture_high_res_frame()
     if not success:
         return jsonify({"success": False, "message": "Error al capturar imagen"})
-    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    frame_bgr = frame # cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     filename = "preview_capture.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
@@ -329,64 +315,75 @@ def test_capture():
 
 @app.route('/calibration/capture', methods=['POST'])
 def capture_calibration_image():
-    """Captura una imagen para calibración y detecta el patrón de tablero de ajedrez"""
     global calibration_images, objpoints, imgpoints
-    
     data = request.get_json()
-    chessboard_size = data.get('chessboard_size', [7, 6])  # Por defecto 7x6 esquinas internas
+    # El usuario envía [columnas, filas]
+    input_size = data.get('chessboard_size', [7, 6])
     
-    print(f"📸 Capturando imagen de calibración (patrón {chessboard_size[0]}x{chessboard_size[1]})...")
+    print(f"📸 Capturando imagen de calibración. Tamaño solicitado: {input_size}")
     
-    # Usar la función de captura en alta resolución
     success, frame_rgb = capture_high_res_frame()
-    
     if not success:
         return jsonify({"success": False, "message": "Error al capturar imagen"})
     
-    # Convertir de RGB a BGR (cv2 lo maneja mejor)
     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     
-    # Buscar las esquinas del tablero de ajedrez
-    ret, corners = cv2.findChessboardCorners(gray, tuple(chessboard_size), None)
+    # Lista de tamaños a probar
+    # 1. Tamaño exacto ingresado (por si el usuario puso esquinas internas)
+    # 2. Tamaño -1 (por si el usuario contó los cuadros blancos/negros)
+    sizes_to_try = [
+        tuple(input_size),
+        (input_size[0] - 1, input_size[1] - 1)
+    ]
     
+    # Flags para mejorar la detección
+    flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
+    
+    ret = False
+    corners = None
+    final_size = None
+    
+    for size in sizes_to_try:
+        if size[0] < 3 or size[1] < 3: # Ignorar tamaños muy pequeños
+            continue
+            
+        print(f"🔍 Intentando detectar patrón de {size[0]}x{size[1]}...")
+        ret, corners = cv2.findChessboardCorners(gray, size, flags)
+        if ret:
+            final_size = size
+            print(f"✅ Patrón detectado con tamaño: {final_size}")
+            break
+            
     if ret:
-        # Preparar puntos del objeto (0,0,0), (1,0,0), (2,0,0) ... (6,5,0)
-        objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-        objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+        objp = np.zeros((final_size[0] * final_size[1], 3), np.float32)
+        objp[:, :2] = np.mgrid[0:final_size[0], 0:final_size[1]].T.reshape(-1, 2)
         
-        # Refinar las esquinas con mayor precisión
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
         
-        # Guardar puntos
         objpoints.append(objp)
         imgpoints.append(corners2)
         
-        # Dibujar las esquinas en la imagen
         img_with_corners = frame_bgr.copy()
-        cv2.drawChessboardCorners(img_with_corners, tuple(chessboard_size), corners2, ret)
+        cv2.drawChessboardCorners(img_with_corners, final_size, corners2, ret)
         
-        # Guardar imagen con esquinas detectadas
         filename = f"calib_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         path = os.path.join(CAPTURAS_FOLDER, filename)
         cv2.imwrite(path, img_with_corners)
-        
         calibration_images.append(path)
-        
-        print(f"✅ Patrón detectado correctamente. Total de imágenes: {len(calibration_images)}")
         
         return jsonify({
             "success": True,
-            "message": f"Patrón detectado. Imágenes capturadas: {len(calibration_images)}",
+            "message": f"Patrón detectado ({final_size[0]}x{final_size[1]}). Imágenes: {len(calibration_images)}",
             "images_count": len(calibration_images),
             "url": url_for('static', filename=f"capturas/{filename}")
         })
     else:
-        print("❌ No se pudo detectar el patrón de tablero de ajedrez")
+        print("❌ No se pudo detectar el patrón de tablero de ajedrez con ninguno de los tamaños probados")
         return jsonify({
             "success": False,
-            "message": "No se detectó el patrón de tablero. Asegúrate de que el tablero esté completamente visible."
+            "message": f"No se detectó el patrón. Probado con {sizes_to_try[0]} y {sizes_to_try[1]}. Asegúrate de que el tablero esté iluminado y visible."
         })
 
 @app.route('/calibration/compute', methods=['POST'])
@@ -613,18 +610,13 @@ def nueva_calibracion_color():
 @app.route('/capture', methods=['POST'])
 def capture():
     print("Capturando imagen...")
-    # Usar la captura de alta resolución
     success, frame_rgb = capture_high_res_frame()
     if not success:
         return jsonify({"success": False})
-    
-    # Convertir a BGR para cv2.imwrite
     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-
     filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
-    
     return jsonify({
         "success": True,
         "url": url_for('static', filename=f"capturas/{filename}")
