@@ -24,9 +24,14 @@ MAPS_FOLDER = os.path.join("static", "modelos")
 CALIB_FOLDER = os.path.join("static", "calibraciones")
 CAPTURAS_FOLDER = os.path.join("static", "capturas")
 COLOR_FOLDER = os.path.join("static", "calibraciones_color")
+FOTOS_LOOP_FOLDER = os.path.join("static", "fotos_loop")
 
 os.makedirs(CAPTURAS_FOLDER, exist_ok=True)
 os.makedirs(CALIB_FOLDER, exist_ok=True)
+#---------Carpeta para las fotos del loop---------
+
+os.makedirs(FOTOS_LOOP_FOLDER, exist_ok=True)
+
 
 # ----------------- CONFIGURACIÓN DE RESOLUCIONES -----------------
 stream_resolution = {"width": 1280, "height": 720} 
@@ -96,7 +101,7 @@ def serial_listener():
                 if success:
                     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                     filename = f"foto_{valor:.2f}.jpg"
-                    path = os.path.join(CAPTURAS_FOLDER, filename)
+                    path = os.path.join(FOTOS_LOOP_FOLDER, filename)
                     cv2.imwrite(path, frame_bgr)
                     print(f"📸 FOTO AUTOMÁTICA GUARDADA -> {filename}")
 
