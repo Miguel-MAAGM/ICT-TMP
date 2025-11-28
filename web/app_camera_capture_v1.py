@@ -112,7 +112,7 @@ def serial_listener():
 
                 success, frame_rgb = capture_high_res_frame()
                 if success:
-                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                    frame_bgr = frame_rgb# cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
                     filename = f"foto_{valor:.2f}.jpg"
                     path = os.path.join(FOTOS_LOOP_FOLDER, filename)
@@ -611,7 +611,7 @@ def control_action(cmd):
 
         success, frame_rgb = capture_high_res_frame()
         if success:
-            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            frame_bgr = frame_bgr#cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
             filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             path = os.path.join(CAPTURAS_FOLDER, filename)
             cv2.imwrite(path, frame_bgr)
@@ -694,7 +694,7 @@ def capture():
     success, frame_rgb = capture_high_res_frame()
     if not success:
         return jsonify({"success": False})
-    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    frame_bgr = frame_bgr #cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
