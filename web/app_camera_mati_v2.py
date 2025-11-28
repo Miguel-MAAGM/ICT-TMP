@@ -7,14 +7,13 @@ from datetime import datetime
 import numpy as np
 import json
 import glob
-import time 
-import serial 
+import time
+import serial
 
 # ======================== CONFIGURACIÓN GENERAL ==========================
-# Reemplaza '/dev/ttyACM0' por el puerto correcto de tu Pico si es diferente.
-SERIAL_PORT = '/dev/ttyACM0' 
-BAUDRATE = 115200 
-ser = None # Inicializado a None globalmente
+SERIAL_PORT = '/dev/ttyACM0'
+BAUDRATE = 115200
+ser = None
 
 app = Flask(__name__)
 
@@ -27,14 +26,13 @@ os.makedirs(CAPTURAS_FOLDER, exist_ok=True)
 os.makedirs(CALIB_FOLDER, exist_ok=True)
 
 # ----------------- CONFIGURACIÓN DE RESOLUCIONES -----------------
-stream_resolution = {"width": 1280, "height": 720} 
-capture_resolution = {"width": 1920, "height": 1080} 
+stream_resolution = {"width": 1280, "height": 720}
+capture_resolution = {"width": 1920, "height": 1080}
 
 # ----------------- INICIALIZACIÓN DE LA CÁMARA RASPBERRY PI -----------------
-# Es importante inicializar picam2 aquí para que las funciones lo usen
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(
-    main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
+    main={"format": "BGR888", "size": (stream_resolution["width"], stream_resolution["height"])}
 ))
 picam2.start()
 
@@ -44,38 +42,28 @@ color_thresholds = {
     "b_min": 0, "b_max": 255
 }
 
-# ----------------- VARIABLES GLOBALES PARA CONTROL -----------------
-step_counter = 0 
-step_size = 20 
+# ----------------- VARIABLES -----------------
+step_counter = 0
+step_size = 20
 
-# Variables para Calibración Automática
 is_auto_calibrating = False
 auto_calib_config = {"rows": 6, "cols": 7}
 last_auto_capture_time = 0
-MIN_TIME_BETWEEN_CAPTURES = 2.0  # Segundos entre capturas automáticas 
+MIN_TIME_BETWEEN_CAPTURES = 2.0
 
-# Variables globales para la calibración
 calibration_images = []
 objpoints = []
 imgpoints = []
 
-# ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
-
+# ======================== SERIAL ==========================
 def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeout=3.0):
     global ser
 
-    """Envía un comando al Pico y, opcionalmente, espera:
-       - una línea 'ANGULO: xx.xx' (wait_for_angle=True)
-       - una línea 'OK' o 'ERROR_...' (wait_for_ok=True)
-    """
     if ser is None:
         return "ERROR_SERIAL_OFFLINE"
 
     try:
-        # Limpia el buffer de entrada para no leer basura vieja
         ser.reset_input_buffer()
-
-        # Envía el comando
         ser.write((command + "\n").encode("utf-8"))
         print(f"<- Comando enviado: {command}")
 
@@ -85,7 +73,6 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
         while True:
             line_bytes = ser.readline()
             if not line_bytes:
-                # Timeout parcial, revisamos si ya pasó el tiempo máximo
                 if time.time() - start_time > timeout:
                     print("⚠️ Timeout esperando respuesta del Pico")
                     break
@@ -98,21 +85,15 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
             print(f"-> Respuesta recibida: {line}")
             last_line = line
 
-            # Si estamos esperando "OK" o un error específico
             if wait_for_ok and (line == "OK" or line.startswith("ERROR_")):
                 return line
 
-            # Si estamos esperando un ángulo
             if wait_for_angle and line.startswith("ANGULO:"):
                 return line
 
-            # Si no esperamos nada especial, con la primera línea nos basta
             if not wait_for_ok and not wait_for_angle:
                 return line
 
-            # Si seguimos esperando algo concreto, continúa leyendo hasta timeout
-
-        # Si salimos por timeout, devolvemos lo último que vimos (si hay algo)
         return last_line or "NO_RESPONSE"
 
     except Exception as e:
@@ -124,122 +105,104 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
         ser = None
         return f"ERROR: {e}"
 
-
-
-# ----------------- FUNCIONES DE CÁMARA (con correcciones) -----------------
-
+# ======================== VIDEO STREAM ==========================
 def gen_frames():
-    global is_auto_calibrating, last_auto_capture_time, calibration_images, objpoints, imgpoints
-    
-    while True:
-        frame = picam2.capture_array() # frame aquí es RGB888
-        if frame is not None:
-            
-            frame_to_stream = frame
-            
-            # Si estamos en modo calibración automática
-            if is_auto_calibrating:
-                try:
-                    # 1. Convertir RGB (de picam2) a BGR (para procesamiento OpenCV)
-                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-                    
-                    rows = auto_calib_config.get("rows", 6)
-                    cols = auto_calib_config.get("cols", 7)
-                    
-                    # Detección rápida
-                    flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE
-                    found, corners = cv2.findChessboardCorners(gray, (cols, rows), flags)
-                    
-                    if found:
-                        # Refinar esquinas
-                        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-                        corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-                        
-                        # Dibujar patrón (sobre BGR)
-                        cv2.drawChessboardCorners(frame_bgr, (cols, rows), corners2, found)
-                        
-                        # Lógica de autoguardado
-                        if time.time() - last_auto_capture_time > MIN_TIME_BETWEEN_CAPTURES:
-                            
-                            # Preparar datos para calibración
-                            objp = np.zeros((rows * cols, 3), np.float32)
-                            objp[:, :2] = np.mgrid[0:cols, 0:rows].T.reshape(-1, 2)
-                            
-                            objpoints.append(objp)
-                            imgpoints.append(corners2)
-                            
-                            # Guardar archivo: usamos la versión pintada (que es BGR)
-                            filename = f"calib_auto_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-                            path = os.path.join(CAPTURAS_FOLDER, filename)
-                            cv2.imwrite(path, frame_bgr)
-                            
-                            calibration_images.append(path)
-                            last_auto_capture_time = time.time()
-                            print(f"✅ [AUTO] Captura guardada: {filename} ({len(calibration_images)} total)")
-                            
-                    # Si estamos en auto-calibración, el frame a streamear es el BGR procesado
-                    frame_to_stream = frame_bgr
-                
-                except Exception as e:
-                    print(f"Error en auto-calibración: {e}")
-            
-            # --- CORRECCIÓN CLAVE PARA EL COLOR DEL STREAM ---
-            # Si el frame aún está en formato RGB (es decir, NO pasó por el bloque de auto-calibración),
-            # lo convertimos a BGR para que cv2.imencode lo interprete correctamente.
-            
-            # frame_to_stream es RGB si is_auto_calibrating es False
-            # frame_to_stream es BGR si is_auto_calibrating es True
-            
-            if not is_auto_calibrating:
-                 frame_to_stream = cv2.cvtColor(frame_to_stream, cv2.COLOR_RGB2BGR)
+    global is_auto_calibrating, last_auto_capture_time, calibration_images
 
-            # frame_to_stream ahora siempre es BGR (o BGR procesado)
-            ret, buffer = cv2.imencode('.jpg', frame_to_stream)
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-def generate_color_frames():
     while True:
-        frame = picam2.capture_array() # frame aquí es RGB888
-        if frame is None:
-            break
-            
-        frame_rgb = frame 
-        
-        # Procesamiento en RGB
-        mask = (frame_rgb[:,:,0] >= color_thresholds["r_min"]) & (frame_rgb[:,:,0] <= color_thresholds["r_max"]) & \
-               (frame_rgb[:,:,1] >= color_thresholds["g_min"]) & (frame_rgb[:,:,1] <= color_thresholds["g_max"]) & \
-               (frame_rgb[:,:,2] >= color_thresholds["b_min"]) & (frame_rgb[:,:,2] <= color_thresholds["b_max"])
-        
-        filtered = np.zeros_like(frame) # filtered es RGB
-        filtered[mask] = [255, 255, 255]
-        
-        # --- CORRECCIÓN CLAVE PARA EL COLOR DEL STREAM DE FILTRO ---
-        # Convertir la imagen procesada de RGB a BGR antes de codificar
-        filtered_bgr = cv2.cvtColor(filtered, cv2.COLOR_RGB2BGR)
-        
-        _, buffer = cv2.imencode('.jpg', filtered_bgr)
+        frame_bgr = picam2.capture_array()  # AHORA ES BGR REAL
+        if frame_bgr is None:
+            continue
+
+        frame_to_stream = frame_bgr
+
+        # ------ AUTO CALIBRACIÓN ------
+        if is_auto_calibrating:
+            try:
+                gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+
+                rows = auto_calib_config.get("rows", 6)
+                cols = auto_calib_config.get("cols", 7)
+
+                flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE
+                found, corners = cv2.findChessboardCorners(gray, (cols, rows), flags)
+
+                if found:
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+                    corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+
+                    cv2.drawChessboardCorners(frame_bgr, (cols, rows), corners2, found)
+
+                    if time.time() - last_auto_capture_time > MIN_TIME_BETWEEN_CAPTURES:
+                        objp = np.zeros((rows * cols, 3), np.float32)
+                        objp[:, :2] = np.mgrid[0:cols, 0:rows].T.reshape(-1, 2)
+
+                        objpoints.append(objp)
+                        imgpoints.append(corners2)
+
+                        filename = f"calib_auto_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                        path = os.path.join(CAPTURAS_FOLDER, filename)
+                        cv2.imwrite(path, frame_bgr)
+
+                        calibration_images.append(path)
+                        last_auto_capture_time = time.time()
+                        print(f"✅ [AUTO] Captura guardada: {filename}")
+
+                frame_to_stream = frame_bgr
+
+            except Exception as e:
+                print(f"Error en auto-calibración: {e}")
+
+        # -------- STREAM EN BGR CORRECTO --------
+        ret, buffer = cv2.imencode('.jpg', frame_to_stream)
         frame_bytes = buffer.tobytes()
+
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
+# ======================== FILTRO DE COLOR ==========================
+def generate_color_frames():
+    while True:
+        frame_bgr = picam2.capture_array()
+        if frame_bgr is None:
+            break
+
+        # Convertir a RGB SOLO para comparar umbrales
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+
+        mask = (frame_rgb[:,:,0] >= color_thresholds["r_min"]) & (frame_rgb[:,:,0] <= color_thresholds["r_max"]) & \
+               (frame_rgb[:,:,1] >= color_thresholds["g_min"]) & (frame_rgb[:,:,1] <= color_thresholds["g_max"]) & \
+               (frame_rgb[:,:,2] >= color_thresholds["b_min"]) & (frame_rgb[:,:,2] <= color_thresholds["b_max"])
+
+        filtered = np.zeros_like(frame_bgr)
+        filtered[mask] = [255, 255, 255]  # BGR
+
+        ret, buffer = cv2.imencode('.jpg', filtered)
+        frame_bytes = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+# ======================== CAPTURA ALTA RESOLUCIÓN ==========================
 def capture_high_res_frame():
     picam2.stop()
+
     capture_config = picam2.create_still_configuration(
-        main={"format": "RGB888", "size": (capture_resolution["width"], capture_resolution["height"])}
+        main={"format": "BGR888", "size": (capture_resolution["width"], capture_resolution["height"])}
     )
     picam2.configure(capture_config)
     picam2.start()
     time.sleep(0.1)
-    frame = picam2.capture_array()
+
+    frame_bgr = picam2.capture_array()
+
     picam2.stop()
     picam2.configure(picam2.create_preview_configuration(
-        main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
+        main={"format": "BGR888", "size": (stream_resolution["width"], stream_resolution["height"])}
     ))
     picam2.start()
-    return frame is not None, frame # frame es RGB
+
+    return frame_bgr is not None, frame_bgr  # AHORA ES BGR CORRECTO
 
 # ----------------- RUTAS DE FLASK -----------------
 
