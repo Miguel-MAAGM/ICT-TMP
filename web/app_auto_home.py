@@ -316,41 +316,62 @@ def capture_high_res_frame():
     return frame is not None, frame
 
 def gen_frames_roi():
-    """Generador que recorta el centro de la imagen (ROI) con Zoom Dinámico"""
-    global roi_zoom_level # <--- Importante: Usamos la variable global
-    roi_base_size = 400   # Tamaño base del recorte antes de escalar
+    """Generador corregido: Recorta MENOS imagen para hacer MÁS zoom"""
+    global roi_zoom_level
+    
+    # Tamaño de la imagen de SALIDA (Resolución fija para el streaming)
+    # Esto asegura que la calidad se mantenga y la imagen no cambie de tamaño en el navegador
+    OUTPUT_SIZE = (600, 450) 
+    
+    # Tamaño base del recorte cuando el Zoom es 1x (Campo de visión máximo)
+    BASE_CROP_W = 600
+    BASE_CROP_H = 450
 
     while True:
         frame = picam2.capture_array()
         
         if frame is not None:
             try:
-                h, w, _ = frame.shape
-                center_x, center_y = w // 2, h // 2
-                
-                # Recortamos el centro
-                x1 = max(0, center_x - (roi_base_size // 2))
-                y1 = max(0, center_y - (roi_base_size // 2))
-                x2 = min(w, center_x + (roi_base_size // 2))
-                y2 = min(h, center_y + (roi_base_size // 2))
+                h_img, w_img, _ = frame.shape
+                center_x, center_y = w_img // 2, h_img // 2
 
+                # --- MAGIA DEL ZOOM ---
+                # Para hacer zoom, el cuadro a recortar debe ser MÁS PEQUEÑO.
+                # Ejemplo: Si Zoom=2.0, el ancho del recorte será la mitad (BASE / 2)
+                current_crop_w = int(BASE_CROP_W / roi_zoom_level)
+                current_crop_h = int(BASE_CROP_H / roi_zoom_level)
+
+                # Asegurar que no sea más grande que la imagen original
+                current_crop_w = min(current_crop_w, w_img)
+                current_crop_h = min(current_crop_h, h_img)
+
+                # Calcular coordenadas (centradas)
+                x1 = max(0, center_x - (current_crop_w // 2))
+                y1 = max(0, center_y - (current_crop_h // 2))
+                x2 = min(w_img, center_x + (current_crop_w // 2))
+                y2 = min(h_img, center_y + (current_crop_h // 2))
+
+                # 1. Recortar (ROI)
                 roi_frame = frame[y1:y2, x1:x2]
 
-                # Aplicamos el Zoom dinámico usando la variable global
-                if roi_zoom_level > 1.0:
-                    # Calculamos nuevo tamaño: tamaño_actual * zoom
-                    new_w = int(roi_frame.shape[1] * roi_zoom_level)
-                    new_h = int(roi_frame.shape[0] * roi_zoom_level)
-                    roi_frame = cv2.resize(roi_frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                # 2. Redimensionar siempre al tamaño de SALIDA fijo
+                # Esto es lo que crea el efecto de "acercarse"
+                if roi_frame.size > 0:
+                    roi_frame = cv2.resize(roi_frame, OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
 
-                # Codificar
+                # (Opcional) Si los colores salen invertidos (azul/rojo), descomenta:
+                # roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_RGB2BGR)
+
                 ret, buffer = cv2.imencode('.jpg', roi_frame)
                 frame_bytes = buffer.tobytes()
 
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
             except Exception as e:
-                pass
+                print(f"Error ROI: {e}")
+                time.sleep(0.01)
+        else:
+            time.sleep(0.01)
 
 # ----------------- RUTAS DE FLASK -----------------
 
