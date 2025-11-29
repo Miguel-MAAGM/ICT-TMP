@@ -39,6 +39,62 @@
         font-weight: 600;
     }
 
+
+    /* --- Estilos actualizados para dos cámaras --- */
+    .video-section-wrapper {
+        display: flex;
+        flex-wrap: wrap; /* Permite que bajen si la pantalla es muy chica */
+        gap: 20px;
+        justify-content: center;
+        margin-bottom: 40px;
+    }
+
+    /* Contenedor individual de cada video */
+    .video-box {
+        flex: 1; /* Toman el mismo ancho */
+        min-width: 300px; /* Ancho mínimo para no romperse en móviles */
+        max-width: 600px; 
+        background: #000;
+        border: 2px solid var(--border-gray);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        position: relative;
+    }
+
+    .video-box h3 {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        background: rgba(0,0,0,0.5);
+        padding: 5px 10px;
+        border-radius: 5px;
+        margin: 0;
+        font-size: 0.9rem;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    /* Ajuste para las imágenes dentro de los boxes */
+    .video-box img {
+        width: 100%;
+        height: auto; /* Altura automática para mantener proporción */
+        display: block;
+        object-fit: contain;
+        aspect-ratio: 16/9; /* Mantiene relación de aspecto aproximada */
+    }
+
+    /* Ajuste para móviles */
+    @media (max-width: 768px) {
+        .video-section-wrapper {
+            flex-direction: column;
+            align-items: center;
+        }
+        .video-box {
+            width: 100%;
+        }
+    }
     .video-container {
         width: 100%;
         max-width: 900px;
@@ -352,6 +408,18 @@
 </div>
 
 <div class="toast-container" id="toast-container"></div>
+
+<div class="video-section-wrapper">
+        <div class="video-box">
+            <h3>Vista General</h3>
+            <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream Principal">
+        </div>
+
+        <div class="video-box" style="border-color: var(--accent-orange);">
+            <h3>Zoom Central (ROI)</h3>
+            <img id="video-roi" src="{{ url_for('video_feed_roi') }}" alt="Video Stream ROI">
+        </div>
+</div>
 
 <script>
 let currentStepSize = 20; // Actualizado a 20 grados por defecto

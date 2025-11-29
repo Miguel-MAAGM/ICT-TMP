@@ -312,11 +312,59 @@ def capture_high_res_frame():
     picam2.start()
     return frame is not None, frame
 
+
+def gen_frames_roi():
+    """Generador para el stream de video con ROI (Zoom Central)"""
+    roi_size = 300  # Tamaño del recorte (300x300 px)
+    scale_factor = 2 # Factor para agrandar la imagen recortada visualmente
+
+    while True:
+        # Capturamos el frame (puede bloquearse si el main stream está usandolo a la vez, 
+        # picam2 maneja cola, pero puede bajar FPS)
+        frame = picam2.capture_array()
+        
+        if frame is not None:
+            try:
+                # Obtenemos dimensiones actuales
+                h, w, _ = frame.shape
+                
+                # Calcular coordenadas para el centro
+                center_x, center_y = w // 2, h // 2
+                x1 = max(0, center_x - (roi_size // 2))
+                y1 = max(0, center_y - (roi_size // 2))
+                x2 = min(w, center_x + (roi_size // 2))
+                y2 = min(h, center_y + (roi_size // 2))
+
+                # Recortar el ROI usando Slicing de Numpy
+                roi_frame = frame[y1:y2, x1:x2]
+
+                # Opcional: Redimensionar para que se vea más grande en pantalla (Zoom digital)
+                if scale_factor > 1:
+                    roi_frame = cv2.resize(roi_frame, (roi_frame.shape[1]*scale_factor, roi_frame.shape[0]*scale_factor), interpolation=cv2.INTER_LINEAR)
+
+                # Codificar a JPG (Recuerda: si usas picam2 directo es RGB, cv2 espera BGR. 
+                # Si los colores salen raros en el ROI, descomenta la siguiente línea):
+                # roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_RGB2BGR)
+
+                ret, buffer = cv2.imencode('.jpg', roi_frame)
+                frame_bytes = buffer.tobytes()
+
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            except Exception as e:
+                print(f"Error en ROI gen: {e}")
+                time.sleep(0.1)
+
 # ----------------- RUTAS DE FLASK -----------------
 
 @app.route('/')
 def index():
     return render_template("index.html")
+
+@app.route('/video_feed_roi')
+def video_feed_roi():
+    return Response(gen_frames_roi(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/camera_setup')
 def camera_setup():
@@ -634,7 +682,9 @@ def control_action(cmd):
     elif cmd == "start_loop_capture":
         print("🟢 Botón loop con captura presionado")
         response = send_serial_command("LOOP_CAPTURE")
-        return jsonify({"success": True, "message": response})
+        while True:
+
+            return jsonify({"success": True, "message": response})
 
         
     elif cmd == "stop":
