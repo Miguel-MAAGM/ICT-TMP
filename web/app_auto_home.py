@@ -577,7 +577,6 @@ def control_action(cmd):
     
     if cmd == "left":
         print(f"🟢 Botón izquierda presionado (paso: {step_size} grados)")
-        # AHORA esperamos directamente el ANGULO final que manda mover_grados()
         angle_response = send_serial_command("LEFT", wait_for_angle=True)
         response = angle_response
 
@@ -602,7 +601,7 @@ def control_action(cmd):
 
     elif cmd == "capture":
         print("🟢 Botón capture presionado")
-        # Pedimos el ángulo actual usando READ y esperamos ANGULO:
+
         angle_response = send_serial_command("READ", wait_for_angle=True)
         current_step = step_counter
 
@@ -611,7 +610,9 @@ def control_action(cmd):
 
         success, frame_rgb = capture_high_res_frame()
         if success:
-            frame_bgr = frame_bgr#cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            # Conversión correcta
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
             filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             path = os.path.join(CAPTURAS_FOLDER, filename)
             cv2.imwrite(path, frame_bgr)
@@ -623,10 +624,16 @@ def control_action(cmd):
             })
         return jsonify({"success": False, "step": current_step})
     
+    elif cmd == "start_loop":
+        print("🟢 Botón start loop presionado")
+        # Para LOOP no esperamos ANGULO, solo un primer mensaje
+        response = send_serial_command("LOOP")
+        return jsonify({"success": True, "step": step_counter, "message": response})
+    
     elif cmd == "start_loop_capture":
         print("🟢 Botón LOOP+CAPTURE con AUTO-HOME presionado")
 
-        # 1) Pedir autohome, pero SIN wait_for_ok
+        # --- 1) Ejecutar AUTO_HOME ---
         home_response = send_serial_command("AUTO_HOME")
 
         if "HOME_OK" not in home_response:
@@ -635,16 +642,14 @@ def control_action(cmd):
 
         print("🏁 Home completado correctamente")
 
-        # 2) Ahora sí iniciar el barrido de captura
+        # --- 2) Ahora sí iniciar el loop de captura ---
         loop_response = send_serial_command("LOOP_CAPTURE")
 
         return jsonify({"success": True, "message": loop_response})
 
-
         
     elif cmd == "stop":
         print("🔴 Botón STOP presionado")
-        # STOP en la Pico termina imprimiendo ANGULO: xx.xx al final
         angle_response = send_serial_command("STOP", wait_for_angle=True)
         response = angle_response
 
@@ -652,13 +657,9 @@ def control_action(cmd):
             step_counter = float(angle_response.split(":")[1].strip())
 
         return jsonify({"success": True, "step": step_counter, "message": response})
-    
-    elif cmd == "start_loop_capture":
-        print("🟢 Botón loop con captura presionado")
-        response = send_serial_command("LOOP_CAPTURE")
-        return jsonify({"success": True, "message": response})
    
     return jsonify({"success": True, "step": step_counter})
+
 
 
 
