@@ -55,6 +55,9 @@ color_thresholds = {
 step_counter = 0 
 step_size = 20 
 
+# --- VARIABLE GLOBAL PARA EL ZOOM ---
+roi_zoom_level = 1.5  # Valor inicial por defecto
+
 # Variables para Calibración Automática
 is_auto_calibrating = False
 auto_calib_config = {"rows": 6, "cols": 7}
@@ -313,38 +316,34 @@ def capture_high_res_frame():
     return frame is not None, frame
 
 def gen_frames_roi():
-    """Generador que recorta el centro de la imagen (ROI)"""
-    roi_size = 400  # Tamaño del cuadro a recortar (400x400 px)
-    scale_factor = 1.5 # Qué tanto agrandar la imagen final
+    """Generador que recorta el centro de la imagen (ROI) con Zoom Dinámico"""
+    global roi_zoom_level # <--- Importante: Usamos la variable global
+    roi_base_size = 400   # Tamaño base del recorte antes de escalar
 
     while True:
         frame = picam2.capture_array()
         
         if frame is not None:
             try:
-                # 1. Calcular el centro
                 h, w, _ = frame.shape
                 center_x, center_y = w // 2, h // 2
                 
-                # 2. Calcular coordenadas de recorte
-                x1 = max(0, center_x - (roi_size // 2))
-                y1 = max(0, center_y - (roi_size // 2))
-                x2 = min(w, center_x + (roi_size // 2))
-                y2 = min(h, center_y + (roi_size // 2))
+                # Recortamos el centro
+                x1 = max(0, center_x - (roi_base_size // 2))
+                y1 = max(0, center_y - (roi_base_size // 2))
+                x2 = min(w, center_x + (roi_base_size // 2))
+                y2 = min(h, center_y + (roi_base_size // 2))
 
-                # 3. Recortar (Slicing)
                 roi_frame = frame[y1:y2, x1:x2]
 
-                # 4. (Opcional) Escalar para ver más grande
-                if scale_factor > 1:
-                    dsize = (int(roi_frame.shape[1]*scale_factor), int(roi_frame.shape[0]*scale_factor))
-                    roi_frame = cv2.resize(roi_frame, dsize, interpolation=cv2.INTER_LINEAR)
+                # Aplicamos el Zoom dinámico usando la variable global
+                if roi_zoom_level > 1.0:
+                    # Calculamos nuevo tamaño: tamaño_actual * zoom
+                    new_w = int(roi_frame.shape[1] * roi_zoom_level)
+                    new_h = int(roi_frame.shape[0] * roi_zoom_level)
+                    roi_frame = cv2.resize(roi_frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
-                # 5. Codificar
-                # Nota: Si los colores salen invertidos (azul en vez de rojo), 
-                # descomenta la linea de abajo:
-                # roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_RGB2BGR)
-
+                # Codificar
                 ret, buffer = cv2.imencode('.jpg', roi_frame)
                 frame_bytes = buffer.tobytes()
 
@@ -361,6 +360,20 @@ def video_feed_roi():
     """Ruta que entrega el video recortado"""
     return Response(gen_frames_roi(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# --- RUTA PARA CAMBIAR EL ZOOM ---
+@app.route('/set_roi_zoom', methods=['POST'])
+def set_roi_zoom():
+    global roi_zoom_level
+    data = request.get_json()
+    try:
+        new_zoom = float(data.get('zoom', 1.0))
+        # Limitamos el zoom entre 1x y 5x por seguridad
+        roi_zoom_level = max(1.0, min(5.0, new_zoom))
+        print(f"🔍 Zoom ROI cambiado a: {roi_zoom_level}x")
+        return jsonify({"success": True, "zoom": roi_zoom_level})
+    except ValueError:
+        return jsonify({"success": False})
 
 @app.route('/monitor_roi')
 def monitor_roi():

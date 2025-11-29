@@ -3,39 +3,91 @@
 {% block content %}
 
 <style>
-    body {
-        background-color: #1e293b; /* Fondo oscuro para resaltar video */
-        margin: 0;
-        padding: 0;
-        height: 100vh;
+    .roi-page-container {
         display: flex;
         flex-direction: column;
-        justify-content: center;
         align-items: center;
-    }
-    
-    .monitor-container {
-        text-align: center;
+        padding: 20px;
+        color: var(--text-dark);
     }
 
-    .monitor-title {
-        color: white;
-        margin-bottom: 20px;
-        font-family: sans-serif;
-    }
-
-    .video-roi {
-        border: 4px solid #f97316; /* Borde naranja para diferenciar */
+    .video-roi-box {
+        border: 4px solid #f97316;
         border-radius: 12px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        max-height: 80vh; /* Que no se salga de la pantalla */
-        max-width: 90vw;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        background: #000;
+        margin-bottom: 20px;
+        /* Tamaño máximo para que no se salga */
+        max-width: 800px;
+        width: 100%; 
+    }
+
+    .video-roi-box img {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    /* Estilos del Control de Zoom */
+    .zoom-controls {
+        background: white;
+        padding: 20px 40px;
+        border-radius: 50px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .zoom-label {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: #475569;
+        min-width: 120px;
+    }
+
+    input[type=range] {
+        width: 300px;
+        cursor: pointer;
     }
 </style>
 
-<div class="monitor-container">
-    <h2 class="monitor-title">🔍 Monitor ROI (Zoom Central)</h2>
-    <img class="video-roi" src="{{ url_for('video_feed_roi') }}" alt="ROI Stream">
+<div class="roi-page-container">
+    <h2 class="mb-4">🔍 Monitor ROI (Zoom Central)</h2>
+
+    <div class="video-roi-box">
+        <img src="{{ url_for('video_feed_roi') }}" alt="ROI Stream">
+    </div>
+
+    <div class="zoom-controls">
+        <span class="zoom-label">Zoom: <span id="zoom-display">1.5</span>x</span>
+        <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1.5" oninput="updateZoom(this.value)">
+    </div>
 </div>
+
+<script>
+    function updateZoom(val) {
+        // Actualizar el texto en pantalla
+        document.getElementById('zoom-display').innerText = val;
+        
+        // Enviar el nuevo valor al backend
+        fetch('/set_roi_zoom', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ zoom: val })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Zoom actualizado:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    }
+</script>
 
 {% endblock %}
