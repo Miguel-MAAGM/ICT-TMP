@@ -316,11 +316,11 @@ def capture_high_res_frame():
     return frame is not None, frame
 
 def gen_frames_roi():
-    """Generador Robusto: Se adapta a 4K o Normal automáticamente"""
-    global roi_zoom_level
+    """Generador ROI: Optimizado para transmitir 4K fluido"""
+    global roi_zoom_level, stream_resolution
     
     while True:
-        # Si la cámara se está reiniciando (Lock adquirido), esperamos un poco
+        # Si la cámara se está reiniciando, esperamos
         if camera_lock.locked():
             time.sleep(0.1)
             continue
@@ -328,7 +328,6 @@ def gen_frames_roi():
         try:
             frame = picam2.capture_array()
         except Exception:
-            # Si falla la captura (ej. justo se detuvo), intentamos de nuevo
             time.sleep(0.05)
             continue
         
@@ -336,45 +335,52 @@ def gen_frames_roi():
             try:
                 h_img, w_img, _ = frame.shape
                 
-                # Definimos el tamaño de salida IGUAL al de entrada actual
-                # Así, si estamos en 4K saldrá en 4K, si es HD saldrá en HD.
-                OUTPUT_SIZE = (w_img, h_img) 
-
                 # --- Lógica de Zoom ---
                 center_x, center_y = w_img // 2, h_img // 2
                 
-                crop_w = int(w_img / roi_zoom_level)
-                crop_h = int(h_img / roi_zoom_level)
+                # Evitar división por cero o zoom inválido
+                safe_zoom = max(1.0, roi_zoom_level)
+                
+                crop_w = int(w_img / safe_zoom)
+                crop_h = int(h_img / safe_zoom)
 
-                # Asegurar límites
-                crop_w = max(1, min(crop_w, w_img))
-                crop_h = max(1, min(crop_h, h_img))
+                # Asegurar que el recorte no sea más grande que la imagen
+                crop_w = min(crop_w, w_img)
+                crop_h = min(crop_h, h_img)
 
+                # Coordenadas
                 x1 = max(0, center_x - (crop_w // 2))
                 y1 = max(0, center_y - (crop_h // 2))
                 x2 = min(w_img, center_x + (crop_w // 2))
                 y2 = min(h_img, center_y + (crop_h // 2))
 
+                # Recorte
                 roi_frame = frame[y1:y2, x1:x2]
 
-                # Redimensionar para efecto Zoom
-                if roi_frame.size > 0:
-                    roi_frame = cv2.resize(roi_frame, OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
+                # --- TRUCO DE CALIDAD ---
+                # Si estamos en 4K (ancho > 2000), bajamos la calidad JPG a 50
+                # para que fluya rápido. Si es HD normal, usamos 90.
+                if w_img > 2500:
+                    # Resize opcional: Si el zoom es muy leve, mantenemos 4K. 
+                    # Pero siempre redimensionamos al tamaño de salida deseado (OUTPUT = input size)
+                    roi_frame = cv2.resize(roi_frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
+                    quality = 50 # Calidad media, pero resolución GIGANTE
+                else:
+                    roi_frame = cv2.resize(roi_frame, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
+                    quality = 85
 
-                # Compresión JPG (calidad dinámica)
-                # Si es 4K (muy ancho), bajamos calidad a 70. Si es HD, 90.
-                quality = 70 if w_img > 2000 else 90
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+                ret, buffer = cv2.imencode('.jpg', roi_frame, encode_param)
                 
-                ret, buffer = cv2.imencode('.jpg', roi_frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-                frame_bytes = buffer.tobytes()
-
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                if ret:
+                    frame_bytes = buffer.tobytes()
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
             except Exception as e:
+                print(f"Error frame: {e}")
                 pass
         else:
             time.sleep(0.01)
-
 # ----------------- RUTAS DE FLASK -----------------
 
 

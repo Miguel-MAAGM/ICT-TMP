@@ -82,37 +82,62 @@
 </div>
 
 <script>
-    // Al cargar la página, forzamos el modo 4K automáticamente
+    // Variables globales
+    const imgElement = document.getElementById('roi-stream');
+    const loaderElement = document.getElementById('loader-msg');
+    let retryCount = 0;
+
+    // Al cargar la página, iniciamos el proceso
     document.addEventListener("DOMContentLoaded", function() {
         activarModo4K();
     });
 
     function activarModo4K() {
+        // 1. Pedir al backend que cambie a 4K
         fetch('/camera/set_mode_4k', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ enable: true }) // TRUE = Activar 4K
+            body: JSON.stringify({ enable: true })
         })
         .then(r => r.json())
         .then(data => {
-            console.log("Modo 4K Activado:", data);
-            
-            // Esperamos un poco para que la cámara estabilice y cargamos la imagen
-            setTimeout(() => {
-                const img = document.getElementById('roi-stream');
-                const loader = document.getElementById('loader-msg');
-                
-                // Forzamos recarga de imagen con timestamp
-                img.src = "{{ url_for('video_feed_roi') }}?t=" + new Date().getTime();
-                
-                // Efecto visual: Ocultar loader, mostrar imagen
-                img.onload = function() {
-                    loader.style.display = 'none';
-                    img.style.opacity = '1';
-                };
-            }, 1000);
+            console.log("Solicitud 4K enviada. Esperando stream...");
+            // Iniciamos el intento de carga de imagen
+            intentarCargarImagen();
         })
-        .catch(err => console.error("Error activando 4K:", err));
+        .catch(err => {
+            console.error("Error de red:", err);
+            // Si falla la red, intentamos cargar la imagen de todas formas por si ya estaba lista
+            intentarCargarImagen();
+        });
+    }
+
+    function intentarCargarImagen() {
+        // Timestamp para evitar caché del navegador
+        const timestamp = new Date().getTime();
+        const url = "{{ url_for('video_feed_roi') }}?t=" + timestamp;
+
+        // Asignamos una función de error antes de poner el src
+        imgElement.onerror = function() {
+            retryCount++;
+            console.log(`Cámara no lista aún, reintentando (${retryCount})...`);
+            
+            // Si falla, esperamos 1 segundo y volvemos a intentarlo (recursivo)
+            setTimeout(() => {
+                // Truco: reasignar el src con nuevo timestamp fuerza al navegador a probar de nuevo
+                imgElement.src = "{{ url_for('video_feed_roi') }}?t=" + new Date().getTime();
+            }, 1000);
+        };
+
+        // Asignamos función de éxito
+        imgElement.onload = function() {
+            console.log("¡Imagen 4K cargada correctamente!");
+            loaderElement.style.display = 'none'; // Ocultar cargando
+            imgElement.style.opacity = '1';       // Mostrar video
+        };
+
+        // Finalmente, seteamos el src para disparar la carga
+        imgElement.src = url;
     }
 
     function updateZoom(val) {
