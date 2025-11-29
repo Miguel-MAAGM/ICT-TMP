@@ -64,6 +64,19 @@
               <i class="bi bi-camera-video me-2"></i> <span>Camera Setup</span>
             </a>
           </li>
+          <li>
+            <a href="{{ url_for('camera_setup') }}" class="nav-link text-white {% if request.endpoint == 'camera_setup' %}active{% endif %}">
+              <i class="bi bi-camera-video me-2"></i> <span>Camera Setup</span>
+            </a>
+          </li>
+
+          <li>
+            <a href="{{ url_for('monitor_roi') }}" target="_blank" class="nav-link text-white {% if request.endpoint == 'monitor_roi' %}active{% endif %}">
+              <i class="bi bi-aspect-ratio me-2"></i> <span>ROI Monitor</span>
+            </a>
+          </li>
+          </ul>
+        <hr>
         </ul>
         <hr>
         <div class="dropdown mt-auto">
