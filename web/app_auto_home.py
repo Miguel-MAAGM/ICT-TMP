@@ -316,60 +316,62 @@ def capture_high_res_frame():
     return frame is not None, frame
 
 def gen_frames_roi():
-    """Generador corregido: Recorta MENOS imagen para hacer MÁS zoom"""
+    """Generador Robusto: Se adapta a 4K o Normal automáticamente"""
     global roi_zoom_level
     
-    # Tamaño de la imagen de SALIDA (Resolución fija para el streaming)
-    # Esto asegura que la calidad se mantenga y la imagen no cambie de tamaño en el navegador
-    OUTPUT_SIZE = (600, 450) 
-    
-    # Tamaño base del recorte cuando el Zoom es 1x (Campo de visión máximo)
-    BASE_CROP_W = 600
-    BASE_CROP_H = 450
-
     while True:
-        frame = picam2.capture_array()
+        # Si la cámara se está reiniciando (Lock adquirido), esperamos un poco
+        if camera_lock.locked():
+            time.sleep(0.1)
+            continue
+
+        try:
+            frame = picam2.capture_array()
+        except Exception:
+            # Si falla la captura (ej. justo se detuvo), intentamos de nuevo
+            time.sleep(0.05)
+            continue
         
         if frame is not None:
             try:
                 h_img, w_img, _ = frame.shape
+                
+                # Definimos el tamaño de salida IGUAL al de entrada actual
+                # Así, si estamos en 4K saldrá en 4K, si es HD saldrá en HD.
+                OUTPUT_SIZE = (w_img, h_img) 
+
+                # --- Lógica de Zoom ---
                 center_x, center_y = w_img // 2, h_img // 2
+                
+                crop_w = int(w_img / roi_zoom_level)
+                crop_h = int(h_img / roi_zoom_level)
 
-                # --- MAGIA DEL ZOOM ---
-                # Para hacer zoom, el cuadro a recortar debe ser MÁS PEQUEÑO.
-                # Ejemplo: Si Zoom=2.0, el ancho del recorte será la mitad (BASE / 2)
-                current_crop_w = int(BASE_CROP_W / roi_zoom_level)
-                current_crop_h = int(BASE_CROP_H / roi_zoom_level)
+                # Asegurar límites
+                crop_w = max(1, min(crop_w, w_img))
+                crop_h = max(1, min(crop_h, h_img))
 
-                # Asegurar que no sea más grande que la imagen original
-                current_crop_w = min(current_crop_w, w_img)
-                current_crop_h = min(current_crop_h, h_img)
+                x1 = max(0, center_x - (crop_w // 2))
+                y1 = max(0, center_y - (crop_h // 2))
+                x2 = min(w_img, center_x + (crop_w // 2))
+                y2 = min(h_img, center_y + (crop_h // 2))
 
-                # Calcular coordenadas (centradas)
-                x1 = max(0, center_x - (current_crop_w // 2))
-                y1 = max(0, center_y - (current_crop_h // 2))
-                x2 = min(w_img, center_x + (current_crop_w // 2))
-                y2 = min(h_img, center_y + (current_crop_h // 2))
-
-                # 1. Recortar (ROI)
                 roi_frame = frame[y1:y2, x1:x2]
 
-                # 2. Redimensionar siempre al tamaño de SALIDA fijo
-                # Esto es lo que crea el efecto de "acercarse"
+                # Redimensionar para efecto Zoom
                 if roi_frame.size > 0:
                     roi_frame = cv2.resize(roi_frame, OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
 
-                # (Opcional) Si los colores salen invertidos (azul/rojo), descomenta:
-                # roi_frame = cv2.cvtColor(roi_frame, cv2.COLOR_RGB2BGR)
-
-                ret, buffer = cv2.imencode('.jpg', roi_frame)
+                # Compresión JPG (calidad dinámica)
+                # Si es 4K (muy ancho), bajamos calidad a 70. Si es HD, 90.
+                quality = 70 if w_img > 2000 else 90
+                
+                ret, buffer = cv2.imencode('.jpg', roi_frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
                 frame_bytes = buffer.tobytes()
 
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
             except Exception as e:
-                print(f"Error ROI: {e}")
-                time.sleep(0.01)
+                pass
         else:
             time.sleep(0.01)
 
@@ -400,6 +402,43 @@ def set_roi_zoom():
 def monitor_roi():
     """Ruta que renderiza la nueva página HTML"""
     return render_template("roi_monitor.html")
+
+@app.route('/camera/set_mode_4k', methods=['POST'])
+def set_mode_4k():
+    global stream_resolution
+    data = request.get_json()
+    enable_4k = data.get('enable', False)
+    
+    # 1. Definir la nueva resolución
+    if enable_4k:
+        new_res = {"width": 3840, "height": 2160} # 4K
+        print("🚀 Cambiando a MODO 4K...")
+    else:
+        new_res = {"width": 1280, "height": 720}  # Normal
+        print("🍃 Cambiando a MODO NORMAL...")
+
+    # 2. Reiniciar la cámara de forma segura
+    # Usamos un Lock para que el generador de video no intente leer mientras cambiamos
+    with camera_lock:
+        try:
+            if picam2.started:
+                picam2.stop()
+            
+            # Actualizamos la configuración global
+            stream_resolution = new_res
+            
+            # Reconfiguramos Picamera2
+            config = picam2.create_preview_configuration(
+                main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
+            )
+            picam2.configure(config)
+            picam2.start()
+            print(f"✅ Cámara reiniciada en: {stream_resolution['width']}x{stream_resolution['height']}")
+            
+            return jsonify({"success": True, "resolution": stream_resolution})
+        except Exception as e:
+            print(f"❌ Error cambiando resolución: {e}")
+            return jsonify({"success": False, "message": str(e)})
 
 @app.route('/')
 def index():
