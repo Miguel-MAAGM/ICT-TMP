@@ -79,9 +79,11 @@ def serial_log_page():
     return "<br>".join(SERIAL_LOG)
 
 # ======================== SERIAL LISTENER (CRÍTICO) ==========================
+# En app_auto_home.py
+# En app_auto_home.py
+
 def serial_listener():
     global ser
-
     print("🔵 Listener serial iniciado…")
 
     while True:
@@ -106,17 +108,18 @@ def serial_listener():
             print(msg)
             add_serial_log(msg)
 
-            # ===================== FOTO AUTOMÁTICA DESDE PICO =====================
+            # ===================== LÓGICA DE FOTO =====================
             if line.startswith("FOTO"):
                 try:
                     valor = float(line.split()[1])
                 except:
-                    continue
+                    valor = 0.0
 
+                # 1. Tomar la foto
                 success, frame_rgb = capture_high_res_frame()
+                
                 if success:
-                    frame_bgr = frame_rgb# cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-
+                    frame_bgr = frame_rgb 
                     filename = f"foto_{valor:.2f}.jpg"
                     path = os.path.join(FOTOS_LOOP_FOLDER, filename)
                     cv2.imwrite(path, frame_bgr)
@@ -124,13 +127,20 @@ def serial_listener():
                     log = f"📸 FOTO AUTOMÁTICA GUARDADA: {filename}"
                     print(log)
                     add_serial_log(log)
+                else:
+                    print("⚠️ Falló la captura, pero avanzamos igual.")
+
+                # 2. IMPORTANTE: Avisar a la Pico (Handshake)
+                if ser and ser.is_open:
+                    # Enviamos SIGUIENTE con salto de línea explícito
+                    ser.write(b"SIGUIENTE\n")
+                    ser.flush()  # <--- CRÍTICO: Fuerza el envío inmediato por USB
+                    print("🚀 -> COMANDO 'SIGUIENTE' ENVIADO A PICO") # Confirmación visual
 
         except Exception as e:
             print(f"[ERROR SERIAL LISTENER] {e}")
             add_serial_log(f"[ERROR SERIAL LISTENER] {e}")
             time.sleep(0.1)
-
-
 
 
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
