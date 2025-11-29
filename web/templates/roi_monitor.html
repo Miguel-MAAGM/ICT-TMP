@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Monitor ROI 4K{% endblock %}
+{% block title %}Monitor ROI{% endblock %}
 {% block content %}
 
 <style>
@@ -20,17 +20,15 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         background: #000;
         margin-bottom: 20px;
+        /* Tamaño adaptable */
+        max-width: 1000px;
         width: 100%;
-        position: relative;
-        min-height: 400px; /* Altura mínima para que se vea el cargando */
     }
 
     .video-roi-box img {
         width: 100%;
         height: auto;
         display: block;
-        opacity: 0; /* Oculto al inicio hasta que cargue el 4K */
-        transition: opacity 0.5s ease;
     }
 
     .zoom-controls {
@@ -42,104 +40,23 @@
         align-items: center;
         gap: 15px;
     }
-
-    /* Pantalla de carga elegante dentro del video */
-    #loader-msg {
-        position: absolute;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        color: white;
-        text-align: center;
-        font-family: sans-serif;
-    }
-    .spinner {
-        border: 4px solid rgba(255,255,255,0.3);
-        border-radius: 50%;
-        border-top: 4px solid #f97316;
-        width: 40px; height: 40px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 10px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>
 
 <div class="roi-page-container">
-    <h2 class="mb-4 text-white">🔍 Monitor ROI (Ultra HD)</h2>
+    <h2 class="mb-4 text-white">🔍 Monitor ROI (Zoom Digital)</h2>
 
     <div class="video-roi-box">
-        <div id="loader-msg">
-            <div class="spinner"></div>
-            <h3>Iniciando Sensor 4K...</h3>
-        </div>
-        
-        <img id="roi-stream" src="" alt="ROI Stream">
+        <img src="{{ url_for('video_feed_roi') }}" alt="ROI Stream">
     </div>
 
     <div class="zoom-controls">
         <span style="font-weight: bold;">Zoom: <span id="zoom-display">1.5</span>x</span>
-        <input type="range" id="zoom-slider" min="1" max="10" step="0.1" value="1.5" oninput="updateZoom(this.value)">
+        <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1.5" oninput="updateZoom(this.value)">
     </div>
 </div>
 
 <script>
-    // Variables globales
-    const imgElement = document.getElementById('roi-stream');
-    const loaderElement = document.getElementById('loader-msg');
-    let retryCount = 0;
-
-    // Al cargar la página, iniciamos el proceso
-    document.addEventListener("DOMContentLoaded", function() {
-        activarModo4K();
-    });
-
-    function activarModo4K() {
-        // 1. Pedir al backend que cambie a 4K
-        fetch('/camera/set_mode_4k', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ enable: true })
-        })
-        .then(r => r.json())
-        .then(data => {
-            console.log("Solicitud 4K enviada. Esperando stream...");
-            // Iniciamos el intento de carga de imagen
-            intentarCargarImagen();
-        })
-        .catch(err => {
-            console.error("Error de red:", err);
-            // Si falla la red, intentamos cargar la imagen de todas formas por si ya estaba lista
-            intentarCargarImagen();
-        });
-    }
-
-    function intentarCargarImagen() {
-        // Timestamp para evitar caché del navegador
-        const timestamp = new Date().getTime();
-        const url = "{{ url_for('video_feed_roi') }}?t=" + timestamp;
-
-        // Asignamos una función de error antes de poner el src
-        imgElement.onerror = function() {
-            retryCount++;
-            console.log(`Cámara no lista aún, reintentando (${retryCount})...`);
-            
-            // Si falla, esperamos 1 segundo y volvemos a intentarlo (recursivo)
-            setTimeout(() => {
-                // Truco: reasignar el src con nuevo timestamp fuerza al navegador a probar de nuevo
-                imgElement.src = "{{ url_for('video_feed_roi') }}?t=" + new Date().getTime();
-            }, 1000);
-        };
-
-        // Asignamos función de éxito
-        imgElement.onload = function() {
-            console.log("¡Imagen 4K cargada correctamente!");
-            loaderElement.style.display = 'none'; // Ocultar cargando
-            imgElement.style.opacity = '1';       // Mostrar video
-        };
-
-        // Finalmente, seteamos el src para disparar la carga
-        imgElement.src = url;
-    }
-
+    // Script simple solo para el Slider de Zoom
     function updateZoom(val) {
         document.getElementById('zoom-display').innerText = val;
         fetch('/set_roi_zoom', {
