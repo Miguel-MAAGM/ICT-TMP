@@ -630,22 +630,11 @@ def control_action(cmd):
         response = send_serial_command("LOOP")
         return jsonify({"success": True, "step": step_counter, "message": response})
     
+    
     elif cmd == "start_loop_capture":
-        print("🟢 Botón LOOP+CAPTURE con AUTO-HOME presionado")
-
-        # --- 1) Ejecutar AUTO_HOME ---
-        home_response = send_serial_command("AUTO_HOME")
-
-        if "HOME_OK" not in home_response:
-            print("❌ Error en HOME:", home_response)
-            return jsonify({"success": False, "message": f"Error en homing: {home_response}"})
-
-        print("🏁 Home completado correctamente")
-
-        # --- 2) Ahora sí iniciar el loop de captura ---
-        loop_response = send_serial_command("LOOP_CAPTURE")
-
-        return jsonify({"success": True, "message": loop_response})
+        print("🟢 Botón loop con captura presionado")
+        response = send_serial_command("LOOP_CAPTURE")
+        return jsonify({"success": True, "message": response})
 
         
     elif cmd == "stop":
