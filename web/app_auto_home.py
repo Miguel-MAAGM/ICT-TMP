@@ -626,17 +626,20 @@ def control_action(cmd):
     elif cmd == "start_loop_capture":
         print("🟢 Botón LOOP+CAPTURE con AUTO-HOME presionado")
 
-        # 1) Primero pedir homing
-        home_response = send_serial_command("AUTO_HOME", wait_for_ok=True)
-        if home_response != "HOME_OK":
+        # 1) Pedir autohome, pero SIN wait_for_ok
+        home_response = send_serial_command("AUTO_HOME")
+
+        if "HOME_OK" not in home_response:
+            print("❌ Error en HOME:", home_response)
             return jsonify({"success": False, "message": f"Error en homing: {home_response}"})
 
         print("🏁 Home completado correctamente")
 
-        # 2) Ahora sí, iniciar el loop con captura
+        # 2) Ahora sí iniciar el barrido de captura
         loop_response = send_serial_command("LOOP_CAPTURE")
 
         return jsonify({"success": True, "message": loop_response})
+
 
         
     elif cmd == "stop":
