@@ -16,22 +16,15 @@ SERIAL_PORT = '/dev/ttyACM0'
 BAUDRATE = 115200 
 ser = None # Inicializado a None globalmente
 
-
-
 app = Flask(__name__)
 
 MAPS_FOLDER = os.path.join("static", "modelos")
 CALIB_FOLDER = os.path.join("static", "calibraciones")
 CAPTURAS_FOLDER = os.path.join("static", "capturas")
 COLOR_FOLDER = os.path.join("static", "calibraciones_color")
-FOTOS_LOOP_FOLDER = os.path.join("static", "fotos_loop")
 
 os.makedirs(CAPTURAS_FOLDER, exist_ok=True)
 os.makedirs(CALIB_FOLDER, exist_ok=True)
-#---------Carpeta para las fotos del loop---------
-
-os.makedirs(FOTOS_LOOP_FOLDER, exist_ok=True)
-
 
 # ----------------- CONFIGURACIÓN DE RESOLUCIONES -----------------
 stream_resolution = {"width": 1280, "height": 720} 
@@ -55,94 +48,11 @@ color_thresholds = {
 step_counter = 0 
 step_size = 20 
 
-# --- VARIABLE GLOBAL PARA EL ZOOM ---
-roi_zoom_level = 1.5  # Valor inicial por defecto
-
 # Variables para Calibración Automática
 is_auto_calibrating = False
 auto_calib_config = {"rows": 6, "cols": 7}
 last_auto_capture_time = 0
 MIN_TIME_BETWEEN_CAPTURES = 2.0  # Segundos entre capturas automáticas 
-
-import threading
-
-SERIAL_LOG = []
-MAX_LOG_LINES = 150
-
-def add_serial_log(msg):
-    SERIAL_LOG.append(msg)
-    if len(SERIAL_LOG) > MAX_LOG_LINES:
-        SERIAL_LOG.pop(0)
-
-@app.route("/serial_log")
-def serial_log_page():
-    return "<br>".join(SERIAL_LOG)
-
-# ======================== SERIAL LISTENER (CRÍTICO) ==========================
-# En app_auto_home.py
-# En app_auto_home.py
-
-def serial_listener():
-    global ser
-    print("🔵 Listener serial iniciado…")
-
-    while True:
-        try:
-            if ser is None or not ser.is_open:
-                time.sleep(0.1)
-                continue
-
-            raw = ser.readline()
-            if not raw:
-                continue
-
-            try:
-                line = raw.decode("utf-8", errors="ignore").strip()
-            except:
-                continue
-
-            if line == "" or len(line) < 2:
-                continue
-
-            msg = f"[SERIAL] {line}"
-            print(msg)
-            add_serial_log(msg)
-
-            # ===================== LÓGICA DE FOTO =====================
-            if line.startswith("FOTO"):
-                try:
-                    valor = float(line.split()[1])
-                except:
-                    valor = 0.0
-
-                # 1. Tomar la foto
-                success, frame_rgb = capture_high_res_frame()
-                
-                if success:
-                    frame_bgr = frame_rgb 
-                    filename = f"foto_{valor:.2f}.jpg"
-                    path = os.path.join(FOTOS_LOOP_FOLDER, filename)
-                    cv2.imwrite(path, frame_bgr)
-
-                    log = f"📸 FOTO AUTOMÁTICA GUARDADA: {filename}"
-                    print(log)
-                    add_serial_log(log)
-                else:
-                    print("⚠️ Falló la captura, pero avanzamos igual.")
-
-                # 2. IMPORTANTE: Avisar a la Pico (Handshake)
-                if ser and ser.is_open:
-                    # Enviamos SIGUIENTE con salto de línea explícito
-                    ser.write(b"SIGUIENTE\n")
-                    ser.flush()  # <--- CRÍTICO: Fuerza el envío inmediato por USB
-                    print("🚀 -> COMANDO 'SIGUIENTE' ENVIADO A PICO") # Confirmación visual
-
-        except Exception as e:
-            print(f"[ERROR SERIAL LISTENER] {e}")
-            add_serial_log(f"[ERROR SERIAL LISTENER] {e}")
-            time.sleep(0.1)
-            # Intentar reconectar
-
 
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
 
@@ -326,121 +236,7 @@ def capture_high_res_frame():
     picam2.start()
     return frame is not None, frame
 
-def gen_frames_roi():
-    """Generador ROI ESTÁNDAR: Recorta digitalmente la imagen HD"""
-    global roi_zoom_level
-    
-    # Tamaño fijo de salida para la ventana del monitor. 
-    # 800x600 es un buen tamaño para ver detalles sin pixelarse demasiado.
-    OUTPUT_SIZE = (1920, 1080)
-
-    while True:
-        # Capturamos el frame tal cual viene del stream principal (rápido)
-        frame = picam2.capture_array()
-        
-        if frame is not None:
-            try:
-                h_img, w_img, _ = frame.shape
-                
-                # --- Lógica de Zoom Digital ---
-                center_x, center_y = w_img // 2, h_img // 2
-                
-                # Calculamos el tamaño del recorte basado en el zoom
-                # Si zoom=2, recortamos la mitad de la imagen central
-                crop_w = int(w_img / roi_zoom_level)
-                crop_h = int(h_img / roi_zoom_level)
-
-                # Asegurar límites
-                crop_w = max(1, min(crop_w, w_img))
-                crop_h = max(1, min(crop_h, h_img))
-
-                x1 = max(0, center_x - (crop_w // 2))
-                y1 = max(0, center_y - (crop_h // 2))
-                x2 = min(w_img, center_x + (crop_w // 2))
-                y2 = min(h_img, center_y + (crop_h // 2))
-
-                # 1. Recortar
-                roi_frame = frame[y1:y2, x1:x2]
-
-                # 2. Redimensionar siempre al tamaño fijo de salida
-                # Esto crea el efecto de "acercamiento"
-                if roi_frame.size > 0:
-                    roi_frame = cv2.resize(roi_frame, OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
-
-                # Codificación estándar (rápida)
-                ret, buffer = cv2.imencode('.jpg', roi_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
-                frame_bytes = buffer.tobytes()
-
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-            except Exception as e:
-                pass
-        else:
-            time.sleep(0.01)
 # ----------------- RUTAS DE FLASK -----------------
-
-
-@app.route('/video_feed_roi')
-def video_feed_roi():
-    """Ruta que entrega el video recortado"""
-    return Response(gen_frames_roi(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-# --- RUTA PARA CAMBIAR EL ZOOM ---
-@app.route('/set_roi_zoom', methods=['POST'])
-def set_roi_zoom():
-    global roi_zoom_level
-    data = request.get_json()
-    try:
-        new_zoom = float(data.get('zoom', 1.0))
-        # Limitamos el zoom entre 1x y 5x por seguridad
-        roi_zoom_level = max(1.0, min(5.0, new_zoom))
-        print(f"🔍 Zoom ROI cambiado a: {roi_zoom_level}x")
-        return jsonify({"success": True, "zoom": roi_zoom_level})
-    except ValueError:
-        return jsonify({"success": False})
-
-@app.route('/monitor_roi')
-def monitor_roi():
-    """Ruta que renderiza la nueva página HTML"""
-    return render_template("roi_monitor.html")
-
-@app.route('/camera/set_mode_4k', methods=['POST'])
-def set_mode_4k():
-    global stream_resolution
-    data = request.get_json()
-    enable_4k = data.get('enable', False)
-    
-    # 1. Definir la nueva resolución
-    if enable_4k:
-        new_res = {"width": 3840, "height": 2160} # 4K
-        print("🚀 Cambiando a MODO 4K...")
-    else:
-        new_res = {"width": 1280, "height": 720}  # Normal
-        print("🍃 Cambiando a MODO NORMAL...")
-
-    # 2. Reiniciar la cámara de forma segura
-    # Usamos un Lock para que el generador de video no intente leer mientras cambiamos
-    with camera_lock:
-        try:
-            if picam2.started:
-                picam2.stop()
-            
-            # Actualizamos la configuración global
-            stream_resolution = new_res
-            
-            # Reconfiguramos Picamera2
-            config = picam2.create_preview_configuration(
-                main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
-            )
-            picam2.configure(config)
-            picam2.start()
-            print(f"✅ Cámara reiniciada en: {stream_resolution['width']}x{stream_resolution['height']}")
-            
-            return jsonify({"success": True, "resolution": stream_resolution})
-        except Exception as e:
-            print(f"❌ Error cambiando resolución: {e}")
-            return jsonify({"success": False, "message": str(e)})
 
 @app.route('/')
 def index():
@@ -705,6 +501,7 @@ def control_action(cmd):
     
     if cmd == "left":
         print(f"🟢 Botón izquierda presionado (paso: {step_size} grados)")
+        # AHORA esperamos directamente el ANGULO final que manda mover_grados()
         angle_response = send_serial_command("LEFT", wait_for_angle=True)
         response = angle_response
 
@@ -729,7 +526,7 @@ def control_action(cmd):
 
     elif cmd == "capture":
         print("🟢 Botón capture presionado")
-
+        # Pedimos el ángulo actual usando READ y esperamos ANGULO:
         angle_response = send_serial_command("READ", wait_for_angle=True)
         current_step = step_counter
 
@@ -738,9 +535,7 @@ def control_action(cmd):
 
         success, frame_rgb = capture_high_res_frame()
         if success:
-            # Conversión correcta
             frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-
             filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             path = os.path.join(CAPTURAS_FOLDER, filename)
             cv2.imwrite(path, frame_bgr)
@@ -757,17 +552,10 @@ def control_action(cmd):
         # Para LOOP no esperamos ANGULO, solo un primer mensaje
         response = send_serial_command("LOOP")
         return jsonify({"success": True, "step": step_counter, "message": response})
-    
-    
-    elif cmd == "start_loop_capture":
-        print("🟢 Botón loop con captura presionado")
-        response = send_serial_command("LOOP_CAPTURE")
-        #while True:
-        return jsonify({"success": True, "message": response})
-
         
     elif cmd == "stop":
         print("🔴 Botón STOP presionado")
+        # STOP en la Pico termina imprimiendo ANGULO: xx.xx al final
         angle_response = send_serial_command("STOP", wait_for_angle=True)
         response = angle_response
 
@@ -775,9 +563,8 @@ def control_action(cmd):
             step_counter = float(angle_response.split(":")[1].strip())
 
         return jsonify({"success": True, "step": step_counter, "message": response})
-   
+        
     return jsonify({"success": True, "step": step_counter})
-
 
 
 
@@ -826,7 +613,7 @@ def capture():
     success, frame_rgb = capture_high_res_frame()
     if not success:
         return jsonify({"success": False})
-    frame_bgr = frame_bgr #cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
@@ -894,7 +681,7 @@ def view_plot(nombre):
                 z.append(float(row["z"]))
     return render_template("view_plot.html", nombre=nombre, x=x, y=y, z=z)
 
-'''if __name__ == '__main__':
+if __name__ == '__main__':
     # ======================== INICIALIZACIÓN SERIAL SEGURO (MOVIMIENTO) ==========================
     # La conexión serial se realiza justo antes de ejecutar Flask. 
     # Si falla, ser es None, pero Flask se inicia.
@@ -919,24 +706,4 @@ def view_plot(nombre):
         if ser is not None and ser.is_open:
             ser.close()
             print("Puerto serial cerrado.")
-        cv2.destroyAllWindows()'''
-
-
-if __name__ == '__main__':
-
-    # Intentar abrir puerto
-    try:
-        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
-        print(f"✅ Serial conectado en {SERIAL_PORT}")
-        time.sleep(2)
-    except Exception as e:
-        print(f"❌ Error serial: {e}")
-        ser = None
-
-    # Iniciar thread listener
-    listener = threading.Thread(target=serial_listener, daemon=True)
-    listener.start()
-    print("🔵 Hilo SERIAL LISTENER iniciado")
-
-    # Ejecutar Flask
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+        cv2.destroyAllWindows()
