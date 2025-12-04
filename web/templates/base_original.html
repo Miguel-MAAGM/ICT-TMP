@@ -44,17 +44,6 @@
             </a>
           </li>
           <li>
-            <a href="{{ url_for('control') }}" class="{{ 'active' if request.endpoint == 'control' else '' }}">
-                <i class="fas fa-gamepad"></i> Control
-            </a>
-          </li>
-
-          <li>
-            <a href="{{ url_for('view_logs') }}" class="{{ 'active' if request.endpoint == 'view_logs' else '' }}">
-                <i class="fas fa-terminal"></i> Logs
-            </a>
-          </li>
-          <li>
             <a href="{{ url_for('ajustes') }}" class="nav-link text-white {% if request.endpoint == 'ajustes' %}active{% endif %}">
               <i class="bi bi-gear me-2"></i> <span>Ajustes</span>
             </a>

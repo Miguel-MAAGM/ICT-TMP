@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Logs del Sistema{% endblock %}
+{% block content %}
+
+<style>
+    .logs-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .terminal-window {
+        background-color: #0c0c0c; /* Fondo casi negro */
+        color: #00ff00; /* Texto verde hacker */
+        font-family: 'Courier New', Courier, monospace;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: 1px solid #333;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 70vh; /* Altura del 70% de la pantalla */
+    }
+
+    .terminal-header {
+        background-color: #1a1a1a;
+        padding: 10px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .terminal-title {
+        font-weight: bold;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .status-dot {
+        height: 10px;
+        width: 10px;
+        background-color: #00ff00;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse 2s infinite;
+    }
+
+    .terminal-content {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto; /* Scroll vertical */
+        white-space: pre-wrap; /* Respetar saltos de línea */
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    /* Scrollbar personalizada oscura */
+    .terminal-content::-webkit-scrollbar { width: 10px; }
+    .terminal-content::-webkit-scrollbar-track { background: #0c0c0c; }
+    .terminal-content::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+    .terminal-content::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    .log-line {
+        border-bottom: 1px solid #1a1a1a;
+        padding: 2px 0;
+    }
+    
+    .log-error { color: #ff4444; } /* Rojo para errores */
+    .log-warn { color: #ffbb33; }  /* Amarillo para warnings */
+    .log-info { color: #00ff00; }  /* Verde normal */
+    
+    .controls {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
+</style>
+
+<div class="logs-container">
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="terminal-title">
+                <span class="status-dot"></span> System Logs (/dev/stdout)
+            </div>
+            <div style="font-size: 0.8rem; color: #888;" id="last-updated">Actualizando...</div>
+        </div>
+        <div class="terminal-content" id="log-output">
+            Cargando logs del sistema...
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="main-btn btn-blue" onclick="toggleAutoScroll()">🔄 Auto-Scroll: ON</button>
+        <button class="main-btn btn-red" onclick="clearLocalLogs()">🗑️ Limpiar Pantalla</button>
+    </div>
+</div>
+
+<script>
+    let autoScroll = true;
+    const logOutput = document.getElementById('log-output');
+    const statusLabel = document.getElementById('last-updated');
+    let lastLogCount = 0;
+
+    function fetchLogs() {
+        fetch('/api/get_logs')
+            .then(response => response.json())
+            .then(data => {
+                const logs = data.logs;
+                
+                // Solo actualizar si hay logs nuevos para no parpadear
+                // (O simplemente repintar todo si es simple)
+                if (logs.length !== lastLogCount || true) { 
+                    renderLogs(logs);
+                    lastLogCount = logs.length;
+                }
+
+                const now = new Date();
+                statusLabel.innerText = "Última act: " + now.toLocaleTimeString();
+            })
+            .catch(err => {
+                console.error("Error fetching logs", err);
+                statusLabel.innerText = "Error de conexión 🔴";
+            });
+    }
+
+    function renderLogs(logs) {
+        // Unir array y limpiar un poco
+        let html = '';
+        logs.forEach(line => {
+            let cssClass = 'log-info';
+            // Coloreado básico sintáctico
+            if (line.includes('ERROR') || line.includes('Exception') || line.includes('Fail')) cssClass = 'log-error';
+            else if (line.includes('WARNING') || line.includes('Timeout')) cssClass = 'log-warn';
+            
+            html += `<div class="log-line ${cssClass}">${line}</div>`;
+        });
+        
+        logOutput.innerHTML = html;
+
+        if (autoScroll) {
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+    }
+
+    function toggleAutoScroll() {
+        autoScroll = !autoScroll;
+        const btn = document.querySelector('button[onclick="toggleAutoScroll()"]');
+        btn.innerText = autoScroll ? "🔄 Auto-Scroll: ON" : "⏸ Auto-Scroll: OFF";
+        if(autoScroll) logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    function clearLocalLogs() {
+        // Esto solo limpia la vista, no el servidor (opcional)
+        logOutput.innerHTML = "--- Vista limpiada ---";
+    }
+
+    // Actualizar cada 2 segundos
+    setInterval(fetchLogs, 2000);
+    // Carga inicial
+    fetchLogs();
+
+</script>
+
+{% endblock %}
