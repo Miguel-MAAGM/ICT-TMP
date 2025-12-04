@@ -25,7 +25,6 @@
   </head>
   <body>
     <div class="d-flex">
-      <!-- Sidebar -->
       <div id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 text-bg-dark" style="height: 100vh;">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <a href="/" class="d-flex align-items-center text-white text-decoration-none">
@@ -38,48 +37,49 @@
         </div>
         <hr>
         <ul class="nav nav-pills flex-column mb-auto">
+          
           <li class="nav-item">
             <a href="{{ url_for('index') }}" class="nav-link text-white {% if request.endpoint == 'index' %}active{% endif %}">
               <i class="bi bi-house me-2"></i> <span>Home</span>
             </a>
           </li>
+          
           <li>
-            <a href="{{ url_for('control') }}" class="{{ 'active' if request.endpoint == 'control' else '' }}">
-                <i class="fas fa-gamepad"></i> Control
+            <a href="{{ url_for('control') }}" class="nav-link text-white {% if request.endpoint == 'control' %}active{% endif %}">
+                <i class="bi bi-controller me-2"></i> <span>Control</span>
             </a>
           </li>
 
           <li>
-            <a href="{{ url_for('view_logs') }}" class="{{ 'active' if request.endpoint == 'view_logs' else '' }}">
-                <i class="fas fa-terminal"></i> Logs
+            <a href="{{ url_for('view_logs') }}" class="nav-link text-white {% if request.endpoint == 'view_logs' %}active{% endif %}">
+                <i class="bi bi-terminal me-2"></i> <span>Logs</span>
             </a>
           </li>
+          
           <li>
             <a href="{{ url_for('ajustes') }}" class="nav-link text-white {% if request.endpoint == 'ajustes' %}active{% endif %}">
               <i class="bi bi-gear me-2"></i> <span>Ajustes</span>
             </a>
           </li>
-          <li>
-            <a href="{{ url_for('control') }}" class="nav-link text-white {% if request.endpoint == 'control' %}active{% endif %}">
-              <i class="bi bi-sliders me-2"></i> <span>Control</span>
-            </a>
-          </li>
+          
           <li>
             <a href="{{ url_for('view_list') }}" class="nav-link text-white {% if request.endpoint == 'view_list' %}active{% endif %}">
               <i class="bi bi-eye me-2"></i> <span>View</span>
             </a>
           </li>
-          <!-- NUEVO: Camera Setup -->
+          
           <li>
             <a href="{{ url_for('camera_setup') }}" class="nav-link text-white {% if request.endpoint == 'camera_setup' %}active{% endif %}">
               <i class="bi bi-camera-video me-2"></i> <span>Camera Setup</span>
             </a>
           </li>
+          
           <li>
             <a href="{{ url_for('monitor_roi') }}" class="nav-link text-white {% if request.endpoint == 'monitor_roi' %}active{% endif %}">
               <i class="bi bi-aspect-ratio me-2"></i> <span>ROI Monitor</span>
             </a>
           </li>
+
         </ul>
         <hr>
         <div class="dropdown mt-auto">
@@ -97,8 +97,7 @@
         </div>
       </div>
 
-      <!-- Contenido principal -->
-      <div class="p-4 flex-grow-1 d-flex flex-column" style="height:100vh;">
+      <div class="p-4 flex-grow-1 d-flex flex-column" style="height:100vh; overflow-y: auto;">
         {% block content %}{% endblock %}
       </div>
     </div>
