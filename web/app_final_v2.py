@@ -772,11 +772,6 @@ def control_action(cmd):
             return jsonify({"success": True, "step": current_step, "url": url_for('static', filename=f"capturas/{filename}")})
         return jsonify({"success": False, "step": current_step})
     
-    elif cmd == "start_loop":
-        print("🟢 Botón start loop presionado")
-        response = send_serial_command("LOOP")
-        return jsonify({"success": True, "step": step_counter, "message": response})
-    
     elif cmd == "start_loop_capture":
         print("🟢 Botón loop con captura presionado")
         

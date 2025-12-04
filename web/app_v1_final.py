@@ -9,6 +9,8 @@ import json
 import glob
 import time 
 import serial 
+import sys
+import io
 
 # ======================== CONFIGURACIÓN GENERAL ==========================
 # Reemplaza '/dev/ttyACM0' por el puerto correcto de tu Pico si es diferente.
@@ -78,6 +80,39 @@ def add_serial_log(msg):
 @app.route("/serial_log")
 def serial_log_page():
     return "<br>".join(SERIAL_LOG)
+
+
+    # ======================== SISTEMA DE LOGS ==========================
+# Una lista para guardar las últimas lineas
+LOG_BUFFER = []
+MAX_LOG_LINES = 300  # Guardar solo las últimas 300 líneas para no llenar la RAM
+
+class LogCapture:
+    """Clase que duplica la salida de la consola a nuestra lista"""
+    def __init__(self, original_stream):
+        self.original_stream = original_stream
+
+    def write(self, message):
+        # 1. Escribir en la terminal real (para que no pierdas debug local)
+        self.original_stream.write(message)
+        self.original_stream.flush()
+        
+        # 2. Guardar en nuestra lista de logs web
+        if message.strip(): # Ignorar líneas vacías puras
+            # Añadimos timestamps o limpiamos si quieres, aquí va crudo
+            LOG_BUFFER.append(message)
+            
+            # Limpieza automática si nos pasamos del límite
+            if len(LOG_BUFFER) > MAX_LOG_LINES:
+                LOG_BUFFER.pop(0)
+
+    def flush(self):
+        self.original_stream.flush()
+
+# --- REDIRECCIÓN MÁGICA ---
+# Esto hace que todos los print() y logs de Flask vayan a nuestra clase
+sys.stdout = LogCapture(sys.stdout)
+sys.stderr = LogCapture(sys.stderr)
 
 # ======================== SERIAL LISTENER (CRÍTICO) ==========================
 # En app_auto_home.py
@@ -381,6 +416,16 @@ def set_roi_zoom():
         return jsonify({"success": True, "zoom": roi_zoom_level})
     except ValueError:
         return jsonify({"success": False})
+    
+    # ----------------- NUEVAS RUTAS PARA LOGS -----------------
+@app.route('/logs')
+def view_logs():
+    return render_template('logs.html')
+
+@app.route('/api/get_logs')
+def get_logs_api():
+    # Devolvemos la lista unida como un solo texto o como lista JSON
+    return jsonify({"logs": LOG_BUFFER})
 
 @app.route('/monitor_roi')
 def monitor_roi():
