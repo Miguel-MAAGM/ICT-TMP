@@ -12,8 +12,10 @@
         --accent-orange-hover: #ea580c;
         --success-green: #10b981;
         --success-green-hover: #059669;
-        --danger-red: #ef4444; /* NUEVO: Color Rojo para STOP */
-        --danger-red-hover: #dc2626; /* NUEVO: Color Rojo Hover */
+        --danger-red: #ef4444; 
+        --danger-red-hover: #dc2626;
+        --purple-royal: #7c3aed;
+        --purple-royal-hover: #6d28d9;
         --bg-gray: #f8fafc;
         --border-gray: #e2e8f0;
         --text-dark: #1e293b;
@@ -29,26 +31,28 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 20px;
+        text-align: center;
     }
 
     .page-title {
-        text-align: center;
         color: var(--text-dark);
         font-size: 2rem;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         font-weight: 600;
     }
 
+    /* --- CONTENEDOR DE VIDEO --- */
     .video-container {
         width: 100%;
         max-width: 900px;
-        height: 450px;
+        height: 506px; /* Relación 16:9 aprox para 900px de ancho */
         border: 2px solid var(--border-gray);
         border-radius: 12px;
-        margin: 0 auto 40px;
+        margin: 0 auto 30px;
         overflow: hidden;
         box-shadow: var(--shadow);
         background: #000;
+        position: relative;
     }
 
     .video-container img {
@@ -57,60 +61,113 @@
         object-fit: contain;
     }
 
-    .controls-section {
+    /* --- SECCIÓN DE CONTROLES --- */
+    .controls-grid {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .row {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 20px;
+        gap: 15px;
         flex-wrap: wrap;
-        margin-top: 40px;
+        width: 100%;
     }
 
+    /* --- INPUT PASOS --- */
     .step-control {
         border: 2px solid var(--border-gray);
-        padding: 20px 30px;
+        padding: 10px 20px;
         border-radius: 12px;
         background: white;
         box-shadow: var(--shadow);
-        text-align: center;
-        min-width: 140px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .step-control label {
-        display: block;
         color: var(--secondary-slate);
-        font-size: 0.85rem;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        font-size: 0.9rem;
         font-weight: 600;
+        text-transform: uppercase;
     }
 
     .step-control input {
-        width: 80px;
-        font-size: 1.5rem;
+        width: 70px;
+        font-size: 1.2rem;
         font-weight: bold;
         color: var(--primary-blue);
         border: 2px solid var(--border-gray);
-        border-radius: 8px;
-        padding: 8px;
+        border-radius: 6px;
+        padding: 5px;
         text-align: center;
-        transition: all 0.3s ease;
     }
 
-    .step-control input:focus {
-        outline: none;
-        border-color: var(--primary-blue);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    .btn-set-step {
+        background: var(--success-green);
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        border-radius: 6px;
+        color: white;
+    }
+    .btn-set-step:hover { background: var(--success-green-hover); }
+
+    /* --- NUEVO: SELECTOR DE VELOCIDAD --- */
+    .speed-control-group {
+        display: flex;
+        gap: 5px;
+        background: white;
+        padding: 10px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        border: 2px solid var(--border-gray);
+        align-items: center;
+    }
+    
+    .speed-label {
+        font-weight: 600;
+        color: var(--secondary-slate);
+        margin-right: 5px;
+        font-size: 0.9rem;
+        padding-left: 10px;
     }
 
-    .step-control input::-webkit-inner-spin-button,
-    .step-control input::-webkit-outer-spin-button {
+    .btn-speed {
+        padding: 8px 15px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        background: #e2e8f0;
+        color: var(--text-dark);
+        opacity: 0.7;
+        font-weight: 600;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-speed:hover { opacity: 1; }
+
+    .btn-speed.active {
         opacity: 1;
-        height: 30px;
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: white;
     }
 
-    button {
+    .btn-speed.slow.active { background-color: #10b981; } /* Verde */
+    .btn-speed.mid.active { background-color: #2563eb; }  /* Azul */
+    .btn-speed.fast.active { background-color: #f97316; } /* Naranja */
+
+
+    /* --- BOTONES GENERALES --- */
+    button.main-btn {
         border: none;
         padding: 15px 30px;
         border-radius: 12px;
@@ -119,76 +176,33 @@
         cursor: pointer;
         transition: all 0.3s ease;
         box-shadow: var(--shadow);
-        outline: none;
         color: white;
+        outline: none;
     }
 
-    button:hover {
+    button.main-btn:hover {
         box-shadow: var(--shadow-hover);
         transform: translateY(-2px);
     }
+    button.main-btn:active { transform: translateY(0); }
 
-    button:active {
-        transform: translateY(0);
-        box-shadow: var(--shadow);
-    }
+    .btn-arrow { background: var(--primary-blue); font-size: 1.5rem; padding: 15px 25px; }
+    .btn-arrow:hover { background: var(--primary-blue-hover); }
 
-    .btn-arrow {
-        background: var(--primary-blue);
-        font-size: 2rem;
-        padding: 20px 35px;
-        min-width: 80px;
-    }
+    .btn-capture { background: var(--secondary-slate); }
+    .btn-capture:hover { background: var(--secondary-slate-hover); }
 
-    .btn-arrow:hover {
-        background: var(--primary-blue-hover);
-    }
-
-    .btn-capture {
-        background: var(--secondary-slate);
-        padding: 18px 40px;
-        font-size: 1.1rem;
-    }
-
-    .btn-capture:hover {
-        background: var(--secondary-slate-hover);
-    }
-
-    .btn-loop {
-        background: var(--accent-orange);
-        padding: 18px 35px;
-        font-size: 1.1rem;
-    }
-
-    .btn-loop:hover {
-        background: var(--accent-orange-hover);
-    }
+    .btn-loop { background: var(--accent-orange); }
+    .btn-loop:hover { background: var(--accent-orange-hover); }
     
-    /* NUEVO: Estilo para el botón de Stop */
-    .btn-stop {
-        background: var(--danger-red);
-        padding: 18px 35px;
-        font-size: 1.1rem;
-    }
+    .btn-loop-capture { background: var(--purple-royal); }
+    .btn-loop-capture:hover { background: var(--purple-royal-hover); }
 
-    .btn-stop:hover {
-        background: var(--danger-red-hover);
-    }
-    /* FIN NUEVO */
+    .btn-stop { background: var(--danger-red); min-width: 150px; }
+    .btn-stop:hover { background: var(--danger-red-hover); }
 
-    .btn-set-step {
-        background: var(--success-green);
-        padding: 12px 25px;
-        font-size: 0.9rem;
-        margin-top: 10px;
-    }
 
-    .btn-set-step:hover {
-        background: var(--success-green-hover);
-    }
-
-    /* Toast Notification Styles */
-    /* ... (Estilos de Toast sin cambios) ... */
+    /* --- TOAST NOTIFICATIONS --- */
     .toast-container {
         position: fixed;
         top: 20px;
@@ -209,144 +223,67 @@
         align-items: center;
         gap: 12px;
         min-width: 280px;
-        max-width: 400px;
         font-weight: 500;
         transform: translateX(400px);
         opacity: 0;
         transition: all 0.3s ease;
     }
 
-    .toast.show {
-        transform: translateX(0);
-        opacity: 1;
-    }
+    .toast.show { transform: translateX(0); opacity: 1; }
+    .toast.hide { transform: translateX(400px); opacity: 0; }
 
-    .toast.hide {
-        transform: translateX(400px);
-        opacity: 0;
-    }
+    .toast.success { border-left: 4px solid var(--success-green); }
+    .toast.info { border-left: 4px solid var(--primary-blue); }
+    .toast.warning { border-left: 4px solid var(--accent-orange); }
+    .toast.danger { border-left: 4px solid var(--danger-red); }
 
-    .toast-icon {
-        font-size: 1.5rem;
-        flex-shrink: 0;
-    }
-
-    .toast.success {
-        border-left: 4px solid var(--success-green);
-    }
-
-    .toast.success .toast-icon {
-        color: var(--success-green);
-    }
-
-    .toast.info {
-        border-left: 4px solid var(--primary-blue);
-    }
-
-    .toast.info .toast-icon {
-        color: var(--primary-blue);
-    }
-
-    .toast.warning {
-        border-left: 4px solid var(--accent-orange);
-    }
-
-    .toast.warning .toast-icon {
-        color: var(--accent-orange);
-    }
-
-    @keyframes slideIn {
-        from {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .controls-section {
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .video-container {
-            height: 300px;
-        }
-
-        button {
-            width: 100%;
-            max-width: 300px;
-        }
-
-        .step-control {
-            width: 100%;
-            max-width: 300px;
-        }
-
-        .toast-container {
-            top: 10px;
-            right: 10px;
-            left: 10px;
-        }
-
-        .toast {
-            min-width: auto;
-            width: 100%;
-        }
-    }
 </style>
 
 <div class="control-container">
-    <h2 class="page-title">Control de Cámara con Step Motor</h2>
+    <h2 class="page-title">Panel de Control</h2>
 
     <div class="video-container">
         <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
     </div>
 
-    <div class="controls-section">
-        <div class="step-control">
-            <label for="step-size">Tamaño del Paso (Grados)</label>
-            <input type="number" id="step-size" value="20" min="1" max="360" step="1">
-            <button class="btn-set-step" onclick="setStepSize()">Aplicar</button>
+    <div class="controls-grid">
+        
+        <div class="row">
+            <div class="step-control">
+                <label for="step-size">Pasos (°)</label>
+                <input type="number" id="step-size" value="20" min="1" max="360" step="1">
+                <button class="btn-set-step main-btn" onclick="setStepSize()">Set</button>
+            </div>
+
+            <div class="speed-control-group">
+                <span class="speed-label">Velocidad:</span>
+                <button class="btn-speed slow" onclick="setSpeed('SLOW', this)">Lento</button>
+                <button class="btn-speed mid active" onclick="setSpeed('MID', this)">Medio</button>
+                <button class="btn-speed fast" onclick="setSpeed('FAST', this)">Rápido</button>
+            </div>
         </div>
 
-        <button class="btn-arrow" onclick="sendAction('left')" aria-label="Mover izquierda">
-            ⬅
-        </button>
+        <div class="row">
+            <button class="main-btn btn-arrow" onclick="sendAction('left')" aria-label="Izquierda">⬅</button>
+            <button class="main-btn btn-capture" onclick="sendAction('capture')">📸 FOTO</button>
+            <button class="main-btn btn-arrow" onclick="sendAction('right')" aria-label="Derecha">➡</button>
+        </div>
 
-        <button class="btn-capture" onclick="sendAction('capture')">
-            📸 Capturar
-        </button>
+        <div class="row">
+            <button class="main-btn btn-loop" onclick="sendAction('start_loop')">
+                🔄 Loop Video
+            </button>
+            
+            <button class="main-btn btn-loop-capture" onclick="sendAction('start_loop_capture')">
+                📸🔄 Escaneo (No Video)
+            </button>
+        </div>
 
-        <button class="btn-arrow" onclick="sendAction('right')" aria-label="Mover derecha">
-            ➡
-        </button>
-
-        <button class="btn-loop" onclick="sendAction('start_loop')">
-            🔄 Iniciar Loop
-        </button>
-        
-        <button id="btn-stop" class="btn-stop" onclick="sendAction('stop')">
-            🛑 Detener Loop (Stop)
-        </button>
-
-        <button class="btn-loop" onclick="sendAction('start_loop_capture')">
-            📸🔄 Loop + Captura
-        </button>
+        <div class="row">
+            <button id="btn-stop" class="main-btn btn-stop" onclick="sendAction('stop')">
+                🛑 STOP / CANCELAR
+            </button>
+        </div>
 
     </div>
 </div>
@@ -354,87 +291,85 @@
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-let currentStepSize = 20; // Actualizado a 20 grados por defecto
-
-// Función para mostrar notificaciones toast
+// --- FUNCIÓN PARA MOSTRAR NOTIFICACIONES ---
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     
-    // Iconos según el tipo
-    const icons = {
-        success: '✓',
-        info: 'ℹ',
-        warning: '⚠',
-        danger: '✕' // Añadido para Stop/Error
-    };
+    // Iconos simples
+    const icons = { success: '✓', info: 'ℹ', warning: '⚠', danger: '✕' };
     
-    toast.innerHTML = `
-        <span class="toast-icon">${icons[type] || icons.info}</span>
-        <span>${message}</span>
-    `;
-    
+    toast.innerHTML = `<span style="font-size:1.2rem">${icons[type] || icons.info}</span><span>${message}</span>`;
     container.appendChild(toast);
     
-    // Mostrar el toast
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
-    
-    // Ocultar y remover después de 3 segundos
+    setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {
         toast.classList.add('hide');
-        setTimeout(() => {
-            container.removeChild(toast);
-        }, 300);
+        setTimeout(() => container.removeChild(toast), 300);
     }, 3000);
 }
 
-function setStepSize() {
-    const stepInput = document.getElementById('step-size');
-    currentStepSize = parseInt(stepInput.value);
-    
-    // Enviar el tamaño del paso al backend
-    fetch('/set_step_size', {
+// --- CONFIGURAR VELOCIDAD ---
+function setSpeed(mode, btnElement) {
+    // 1. Actualizar visualmente botones
+    document.querySelectorAll('.btn-speed').forEach(b => b.classList.remove('active'));
+    btnElement.classList.add('active');
+
+    // 2. Enviar comando al servidor
+    fetch('/set_speed', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ step_size: currentStepSize })
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ speed: mode })
     })
     .then(r => r.json())
     .then(data => {
-        console.log("Tamaño de paso configurado:", data);
-        if (data.status === 'success') {
-             showToast(`Paso configurado: ${currentStepSize}°`, 'success');
+        if(data.status === 'success') {
+            showToast(`Velocidad: ${mode}`, 'success');
         } else {
-             showToast(`Error al configurar el paso: ${data.message || 'Desconocido'}`, 'warning');
+            showToast('Error al cambiar velocidad', 'danger');
         }
-        
-        // Feedback visual en el input
-        stepInput.style.borderColor = '#10b981';
-        setTimeout(() => {
-            stepInput.style.borderColor = '#e2e8f0';
-        }, 1000);
     })
     .catch(err => {
-        console.error("Error:", err);
-        showToast('Error de red al configurar el paso', 'warning');
+        console.error(err);
+        showToast('Error de conexión', 'danger');
     });
 }
 
+// --- CONFIGURAR PASOS ---
+function setStepSize() {
+    const stepInput = document.getElementById('step-size');
+    const val = parseInt(stepInput.value);
+    
+    fetch('/set_step_size', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step_size: val })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+             showToast(`Paso ajustado a ${val}°`, 'success');
+             stepInput.style.borderColor = '#10b981';
+             setTimeout(() => stepInput.style.borderColor = '#e2e8f0', 1000);
+        } else {
+             showToast('Error configurando paso', 'warning');
+        }
+    })
+    .catch(err => showToast('Error de red', 'danger'));
+}
+
+// --- ENVIAR ACCIONES (Movimiento, Loops, Stop) ---
 function sendAction(action) {
-    // Mensajes iniciales y tipo de notificación por defecto
     const messages = {
-        'left': '⬅ Moviendo a la izquierda...',
-        'right': '➡ Moviendo a la derecha...',
+        'left': '⬅ Moviendo Izquierda...',
+        'right': '➡ Moviendo Derecha...',
         'capture': '📸 Capturando...',
         'start_loop': '🔄 Iniciando Loop...',
-        'stop': '🛑 Deteniendo Loop...'
+        'start_loop_capture': '🚀 Iniciando Escaneo...',
+        'stop': '🛑 Enviando STOP...'
     };
 
-    // Muestra una notificación temporal de acción en progreso
     showToast(messages[action], 'info');
     
     fetch(`/action/${action}`, { method: "POST" })
@@ -442,49 +377,30 @@ function sendAction(action) {
         .then(data => {
             console.log("Respuesta:", data);
             
-            let finalMessage = '';
-            let type = 'info';
-
             if (data.success) {
-                // Mensajes de éxito
                 if (action === 'capture') {
-                    finalMessage = `Imagen capturada. Posición: ${data.step}°`;
-                    type = 'success';
-                } else if (action === 'start_loop') {
-                    finalMessage = `Loop iniciado. Mensaje: ${data.message}`;
-                    type = 'warning'; // Loop iniciado es warning/info
+                    showToast(`Foto OK: ${data.step}°`, 'success');
+                } else if (action === 'start_loop_capture') {
+                    showToast('Escaneo iniciado. Video pausado.', 'warning');
                 } else if (action === 'stop') {
-                    finalMessage = `Loop detenido. Posición final: ${data.step}°`;
-                    type = 'danger'; // Uso rojo para STOP
-                } else if (action === 'left' || action === 'right') {
-                    finalMessage = `Movimiento OK. Nueva posición: ${data.step}°`;
-                    type = 'success';
+                    showToast('Sistema Detenido. Video restaurado.', 'danger');
+                } else {
+                    showToast('Comando OK', 'success');
                 }
             } else {
-                // Mensajes de error general
-                finalMessage = `FALLO en ${action}: ${data.message || 'Error desconocido'}`;
-                type = 'danger';
+                showToast(`Error: ${data.message || 'Desconocido'}`, 'danger');
             }
-
-            // Reemplaza la notificación inicial con el resultado final
-            showToast(finalMessage, type);
-
         })
         .catch(err => {
-            console.error("Error:", err);
-            showToast('Error de red o conexión con el servidor', 'danger');
+            console.error(err);
+            showToast('Error de conexión', 'danger');
         });
 }
 
-// Permitir aplicar el paso con Enter
+// Enter en el input de pasos
 document.getElementById('step-size').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        setStepSize();
-    }
+    if (e.key === 'Enter') setStepSize();
 });
-
-// Inicialización: Establecer el tamaño de paso inicial al cargar la página (opcional, pero buena práctica)
-// setStepSize(); 
 </script>
 
 {% endblock %}
