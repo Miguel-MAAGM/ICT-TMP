@@ -9,13 +9,13 @@ import json
 import glob
 import time 
 import serial 
-import threading
-
 
 # ======================== CONFIGURACIÓN GENERAL ==========================
+# Reemplaza '/dev/ttyACM0' por el puerto correcto de tu Pico si es diferente.
 SERIAL_PORT = '/dev/ttyACM0' 
 BAUDRATE = 115200 
-ser = None
+ser = None # Inicializado a None globalmente
+
 
 
 app = Flask(__name__)
@@ -28,13 +28,17 @@ FOTOS_LOOP_FOLDER = os.path.join("static", "fotos_loop")
 
 os.makedirs(CAPTURAS_FOLDER, exist_ok=True)
 os.makedirs(CALIB_FOLDER, exist_ok=True)
+#---------Carpeta para las fotos del loop---------
+
 os.makedirs(FOTOS_LOOP_FOLDER, exist_ok=True)
+
 
 # ----------------- CONFIGURACIÓN DE RESOLUCIONES -----------------
 stream_resolution = {"width": 1280, "height": 720} 
 capture_resolution = {"width": 1920, "height": 1080} 
 
 # ----------------- INICIALIZACIÓN DE LA CÁMARA RASPBERRY PI -----------------
+# Es importante inicializar picam2 aquí para que las funciones lo usen
 picam2 = Picamera2()
 picam2.configure(picam2.create_preview_configuration(
     main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
@@ -50,80 +54,34 @@ color_thresholds = {
 # ----------------- VARIABLES GLOBALES PARA CONTROL -----------------
 step_counter = 0 
 step_size = 20 
-roi_zoom_level = 1.5
+streaming_active = True  # <--- NUEVA VARIABLE: Controla si enviamos video o no
+
+# --- VARIABLE GLOBAL PARA EL ZOOM ---
+roi_zoom_level = 1.5  # Valor inicial por defecto
 
 # Variables para Calibración Automática
 is_auto_calibrating = False
 auto_calib_config = {"rows": 6, "cols": 7}
 last_auto_capture_time = 0
-MIN_TIME_BETWEEN_CAPTURES = 2.0
+MIN_TIME_BETWEEN_CAPTURES = 2.0  # Segundos entre capturas automáticas 
+
+import threading
 
 SERIAL_LOG = []
 MAX_LOG_LINES = 150
-
-# ----------------- VARIABLES GLOBALES ADICIONALES -----------------
-calibration_images = []
-objpoints = []
-imgpoints = []
-camera_lock = threading.Lock()
-
-# ======================== FUNCIONES AUXILIARES DE MENSAJES ==========================
-
-def format_user_message(raw_response, action_type, angle=None):
-    """
-    Convierte respuestas técnicas en mensajes amigables para el usuario.
-    """
-    if raw_response.startswith("ANGULO:"):
-        try:
-            angle_val = float(raw_response.split(":")[1].strip())
-            if action_type == "left":
-                return f"Motor girado a la izquierda. Posición actual: {angle_val:.2f}°"
-            elif action_type == "right":
-                return f"Motor girado a la derecha. Posición actual: {angle_val:.2f}°"
-            elif action_type == "stop":
-                return f"Motor detenido en posición: {angle_val:.2f}°"
-            else:
-                return f"Posición actual del motor: {angle_val:.2f}°"
-        except:
-            return "Movimiento completado"
-    
-    elif raw_response == "OK":
-        if action_type == "loop":
-            return "Ciclo continuo iniciado correctamente"
-        elif action_type == "loop_capture":
-            return "Ciclo con captura automática iniciado"
-        elif action_type == "set_angle":
-            return f"Tamaño de paso configurado a {angle}°"
-        else:
-            return "Comando ejecutado correctamente"
-    
-    elif raw_response.startswith("ERROR_"):
-        error_type = raw_response.replace("ERROR_", "")
-        return f"Error: {error_type}. Verifica la conexión y vuelve a intentar"
-    
-    elif raw_response == "NO_RESPONSE":
-        return "Sin respuesta del motor. Verifica la conexión serial"
-    
-    elif raw_response == "ERROR_SERIAL_OFFLINE":
-        return "Motor desconectado. Reconecta el dispositivo"
-    
-    else:
-        # Para cualquier otro mensaje, dejarlo pasar
-        return raw_response
-
 
 def add_serial_log(msg):
     SERIAL_LOG.append(msg)
     if len(SERIAL_LOG) > MAX_LOG_LINES:
         SERIAL_LOG.pop(0)
 
-
 @app.route("/serial_log")
 def serial_log_page():
     return "<br>".join(SERIAL_LOG)
 
-
-# ======================== SERIAL LISTENER ==========================
+# ======================== SERIAL LISTENER (CRÍTICO) ==========================
+# En app_auto_home.py
+# En app_auto_home.py
 
 def serial_listener():
     global ser
@@ -151,13 +109,14 @@ def serial_listener():
             print(msg)
             add_serial_log(msg)
 
-            # ===================== LÓGICA DE FOTO AUTOMÁTICA =====================
+            # ===================== LÓGICA DE FOTO =====================
             if line.startswith("FOTO"):
                 try:
                     valor = float(line.split()[1])
                 except:
                     valor = 0.0
 
+                # 1. Tomar la foto
                 success, frame_rgb = capture_high_res_frame()
                 
                 if success:
@@ -166,22 +125,24 @@ def serial_listener():
                     path = os.path.join(FOTOS_LOOP_FOLDER, filename)
                     cv2.imwrite(path, frame_bgr)
 
-                    log = f"📸 Foto capturada automáticamente: {filename} (Ángulo: {valor:.2f}°)"
+                    log = f"📸 FOTO AUTOMÁTICA GUARDADA: {filename}"
                     print(log)
                     add_serial_log(log)
                 else:
-                    print("⚠️ Error en captura automática, continuando...")
+                    print("⚠️ Falló la captura, pero avanzamos igual.")
 
-                # Handshake con la Pico
+                # 2. IMPORTANTE: Avisar a la Pico (Handshake)
                 if ser and ser.is_open:
+                    # Enviamos SIGUIENTE con salto de línea explícito
                     ser.write(b"SIGUIENTE\n")
-                    ser.flush()
-                    print("✅ Señal enviada al motor para continuar")
+                    ser.flush()  # <--- CRÍTICO: Fuerza el envío inmediato por USB
+                    print("🚀 -> COMANDO 'SIGUIENTE' ENVIADO A PICO") # Confirmación visual
 
         except Exception as e:
             print(f"[ERROR SERIAL LISTENER] {e}")
-            add_serial_log(f"[ERROR] Listener serial: {e}")
+            add_serial_log(f"[ERROR SERIAL LISTENER] {e}")
             time.sleep(0.1)
+            # Intentar reconectar
 
 
 # ----------------- FUNCIONES DE COMUNICACIÓN SERIAL -----------------
@@ -189,11 +150,18 @@ def serial_listener():
 def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeout=3.0):
     global ser
 
+    """Envía un comando al Pico y, opcionalmente, espera:
+       - una línea 'ANGULO: xx.xx' (wait_for_angle=True)
+       - una línea 'OK' o 'ERROR_...' (wait_for_ok=True)
+    """
     if ser is None:
         return "ERROR_SERIAL_OFFLINE"
 
     try:
+        # Limpia el buffer de entrada para no leer basura vieja
         ser.reset_input_buffer()
+
+        # Envía el comando
         ser.write((command + "\n").encode("utf-8"))
         print(f"<- Comando enviado: {command}")
 
@@ -203,8 +171,9 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
         while True:
             line_bytes = ser.readline()
             if not line_bytes:
+                # Timeout parcial, revisamos si ya pasó el tiempo máximo
                 if time.time() - start_time > timeout:
-                    print("⚠️ Timeout esperando respuesta del motor")
+                    print("⚠️ Timeout esperando respuesta del Pico")
                     break
                 continue
 
@@ -215,15 +184,21 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
             print(f"-> Respuesta recibida: {line}")
             last_line = line
 
+            # Si estamos esperando "OK" o un error específico
             if wait_for_ok and (line == "OK" or line.startswith("ERROR_")):
                 return line
 
+            # Si estamos esperando un ángulo
             if wait_for_angle and line.startswith("ANGULO:"):
                 return line
 
+            # Si no esperamos nada especial, con la primera línea nos basta
             if not wait_for_ok and not wait_for_angle:
                 return line
 
+            # Si seguimos esperando algo concreto, continúa leyendo hasta timeout
+
+        # Si salimos por timeout, devolvemos lo último que vimos (si hay algo)
         return last_line or "NO_RESPONSE"
 
     except Exception as e:
@@ -236,62 +211,70 @@ def send_serial_command(command, wait_for_angle=False, wait_for_ok=False, timeou
         return f"ERROR: {e}"
 
 
+
 # ----------------- FUNCIONES DE CÁMARA -----------------
 
 def gen_frames():
-    global is_auto_calibrating, last_auto_capture_time, calibration_images, objpoints, imgpoints
+    global is_auto_calibrating, last_auto_capture_time, calibration_images, objpoints, imgpoints, streaming_active
     
+    # Pre-creamos una imagen negra con texto para cuando el stream esté pausado
+    # Esto ahorra CPU al no tener que generarla en cada frame
+    placeholder_img = np.zeros((720, 1280, 3), dtype=np.uint8)
+    cv2.putText(placeholder_img, "ESCANEO EN PROCESO...", (350, 360), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
+    cv2.putText(placeholder_img, "VIDEO PAUSADO POR RENDIMIENTO", (380, 420), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 200), 2)
+    ret, buffer_placeholder = cv2.imencode('.jpg', placeholder_img)
+    bytes_placeholder = buffer_placeholder.tobytes()
+
     while True:
+        # --- NUEVA LÓGICA: SI EL STREAMING ESTÁ DESACTIVADO ---
+        if not streaming_active:
+            # Enviamos la imagen estática y dormimos un poco para liberar CPU
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + bytes_placeholder + b'\r\n')
+            time.sleep(1.0) # Dormir 1 segundo (muy bajo consumo)
+            continue
+        # ------------------------------------------------------
+
+        # (AQUÍ SIGUE TU CÓDIGO ORIGINAL DE GEN_FRAMES)
         frame = picam2.capture_array()
         if frame is not None:
             if is_auto_calibrating:
+                # ... (tu lógica de calibración existente) ...
                 try:
-                    frame_bgr = frame
+                    frame_bgr = frame 
                     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-                    
                     rows = auto_calib_config.get("rows", 6)
                     cols = auto_calib_config.get("cols", 7)
-                    
                     flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE
                     found, corners = cv2.findChessboardCorners(gray, (cols, rows), flags)
-                    
                     if found:
                         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
                         corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
                         cv2.drawChessboardCorners(frame_bgr, (cols, rows), corners2, found)
-                        
                         if time.time() - last_auto_capture_time > MIN_TIME_BETWEEN_CAPTURES:
-                            clean_bgr = frame
-                            objp = np.zeros((rows * cols, 3), np.float32)
-                            objp[:, :2] = np.mgrid[0:cols, 0:rows].T.reshape(-1, 2)
-                            
-                            objpoints.append(objp)
-                            imgpoints.append(corners2)
-                            
-                            img_with_corners = clean_bgr.copy()
-                            cv2.drawChessboardCorners(img_with_corners, (cols, rows), corners2, found)
-                            
+                            img_with_corners = frame_bgr.copy() # Ya es BGR si viene de picam array? Ojo con conversion
+                            # Nota: Asumo que tu logica de color aqui ya te funciona, la dejo igual.
                             filename = f"calib_auto_{len(calibration_images)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
                             path = os.path.join(CAPTURAS_FOLDER, filename)
                             cv2.imwrite(path, img_with_corners)
-                            
                             calibration_images.append(path)
                             last_auto_capture_time = time.time()
-                            print(f"✅ [AUTO] Captura guardada: {filename} ({len(calibration_images)} total)")
-                    
+                            print(f"✅ [AUTO] Captura guardada: {filename}")
                     frame = frame_bgr
-                    
                 except Exception as e:
-                    print(f"Error en auto-calibración: {e}")
+                    print(f"Error auto-calib: {e}")
 
             if not is_auto_calibrating:
-                 frame = frame
+                 frame = frame 
 
             ret, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
+        else:
+            time.sleep(0.01)
 
 def generate_color_frames():
     while True:
@@ -309,7 +292,6 @@ def generate_color_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-
 def capture_high_res_frame():
     picam2.stop()
     capture_config = picam2.create_still_configuration(
@@ -326,22 +308,31 @@ def capture_high_res_frame():
     picam2.start()
     return frame is not None, frame
 
-
 def gen_frames_roi():
+    """Generador ROI ESTÁNDAR: Recorta digitalmente la imagen HD"""
     global roi_zoom_level
+    
+    # Tamaño fijo de salida para la ventana del monitor. 
+    # 800x600 es un buen tamaño para ver detalles sin pixelarse demasiado.
     OUTPUT_SIZE = (1920, 1080)
 
     while True:
+        # Capturamos el frame tal cual viene del stream principal (rápido)
         frame = picam2.capture_array()
         
         if frame is not None:
             try:
                 h_img, w_img, _ = frame.shape
+                
+                # --- Lógica de Zoom Digital ---
                 center_x, center_y = w_img // 2, h_img // 2
                 
+                # Calculamos el tamaño del recorte basado en el zoom
+                # Si zoom=2, recortamos la mitad de la imagen central
                 crop_w = int(w_img / roi_zoom_level)
                 crop_h = int(h_img / roi_zoom_level)
 
+                # Asegurar límites
                 crop_w = max(1, min(crop_w, w_img))
                 crop_h = max(1, min(crop_h, h_img))
 
@@ -350,11 +341,15 @@ def gen_frames_roi():
                 x2 = min(w_img, center_x + (crop_w // 2))
                 y2 = min(h_img, center_y + (crop_h // 2))
 
+                # 1. Recortar
                 roi_frame = frame[y1:y2, x1:x2]
 
+                # 2. Redimensionar siempre al tamaño fijo de salida
+                # Esto crea el efecto de "acercamiento"
                 if roi_frame.size > 0:
                     roi_frame = cv2.resize(roi_frame, OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
 
+                # Codificación estándar (rápida)
                 ret, buffer = cv2.imencode('.jpg', roi_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
                 frame_bytes = buffer.tobytes()
 
@@ -364,50 +359,33 @@ def gen_frames_roi():
                 pass
         else:
             time.sleep(0.01)
-
-
 # ----------------- RUTAS DE FLASK -----------------
+
 
 @app.route('/video_feed_roi')
 def video_feed_roi():
+    """Ruta que entrega el video recortado"""
     return Response(gen_frames_roi(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
-@app.route('/set_velocidad', methods=['POST'])
-def set_velocidad_route():
-    data = request.get_json()
-    velocidad = data.get('velocidad', 'medio')  # lento, medio, rapido
-    
-    print(f"🏃 Configurando velocidad de captura: {velocidad}")
-    
-    response = send_serial_command(f"SET_VELOCIDAD {velocidad}", wait_for_ok=True)
-    
-    return jsonify({
-        'status': 'success', 
-        'velocidad': velocidad, 
-        'message': response
-    })
-
-
-
+# --- RUTA PARA CAMBIAR EL ZOOM ---
 @app.route('/set_roi_zoom', methods=['POST'])
 def set_roi_zoom():
     global roi_zoom_level
     data = request.get_json()
     try:
         new_zoom = float(data.get('zoom', 1.0))
+        # Limitamos el zoom entre 1x y 5x por seguridad
         roi_zoom_level = max(1.0, min(5.0, new_zoom))
         print(f"🔍 Zoom ROI cambiado a: {roi_zoom_level}x")
         return jsonify({"success": True, "zoom": roi_zoom_level})
     except ValueError:
         return jsonify({"success": False})
 
-
 @app.route('/monitor_roi')
 def monitor_roi():
+    """Ruta que renderiza la nueva página HTML"""
     return render_template("roi_monitor.html")
-
 
 @app.route('/camera/set_mode_4k', methods=['POST'])
 def set_mode_4k():
@@ -415,20 +393,25 @@ def set_mode_4k():
     data = request.get_json()
     enable_4k = data.get('enable', False)
     
+    # 1. Definir la nueva resolución
     if enable_4k:
-        new_res = {"width": 3840, "height": 2160}
+        new_res = {"width": 3840, "height": 2160} # 4K
         print("🚀 Cambiando a MODO 4K...")
     else:
-        new_res = {"width": 1280, "height": 720}
+        new_res = {"width": 1280, "height": 720}  # Normal
         print("🍃 Cambiando a MODO NORMAL...")
 
+    # 2. Reiniciar la cámara de forma segura
+    # Usamos un Lock para que el generador de video no intente leer mientras cambiamos
     with camera_lock:
         try:
             if picam2.started:
                 picam2.stop()
             
+            # Actualizamos la configuración global
             stream_resolution = new_res
             
+            # Reconfiguramos Picamera2
             config = picam2.create_preview_configuration(
                 main={"format": "RGB888", "size": (stream_resolution["width"], stream_resolution["height"])}
             )
@@ -441,16 +424,13 @@ def set_mode_4k():
             print(f"❌ Error cambiando resolución: {e}")
             return jsonify({"success": False, "message": str(e)})
 
-
 @app.route('/')
 def index():
     return render_template("index.html")
 
-
 @app.route('/camera_setup')
 def camera_setup():
     return render_template("camera_setup.html")
-
 
 @app.route('/camera/get_resolutions', methods=['GET'])
 def get_resolutions():
@@ -461,7 +441,6 @@ def get_resolutions():
         "capture_width": capture_resolution["width"],
         "capture_height": capture_resolution["height"]
     })
-
 
 @app.route('/camera/set_stream_resolution', methods=['POST'])
 def set_stream_resolution():
@@ -487,7 +466,6 @@ def set_stream_resolution():
         "actual_height": actual_height
     })
 
-
 @app.route('/camera/set_capture_resolution', methods=['POST'])
 def set_capture_resolution():
     global capture_resolution
@@ -502,14 +480,13 @@ def set_capture_resolution():
         "message": f"Resolución de captura configurada a {width}x{height}"
     })
 
-
 @app.route('/camera/test_capture', methods=['POST'])
 def test_capture():
     print("📷 Realizando captura de prueba...")
     success, frame = capture_high_res_frame()
     if not success:
         return jsonify({"success": False, "message": "Error al capturar imagen"})
-    frame_bgr = frame
+    frame_bgr = frame # cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     filename = "preview_capture.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
@@ -522,11 +499,11 @@ def test_capture():
         "height": actual_height
     })
 
-
 @app.route('/calibration/capture', methods=['POST'])
 def capture_calibration_image():
     global calibration_images, objpoints, imgpoints
     data = request.get_json()
+    # El usuario envía [columnas, filas]
     input_size = data.get('chessboard_size', [7, 6])
     
     print(f"📸 Capturando imagen de calibración. Tamaño solicitado: {input_size}")
@@ -538,11 +515,15 @@ def capture_calibration_image():
     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
     
+    # Lista de tamaños a probar
+    # 1. Tamaño exacto ingresado (por si el usuario puso esquinas internas)
+    # 2. Tamaño -1 (por si el usuario contó los cuadros blancos/negros)
     sizes_to_try = [
         tuple(input_size),
         (input_size[0] - 1, input_size[1] - 1)
     ]
     
+    # Flags para mejorar la detección
     flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
     
     ret = False
@@ -550,7 +531,7 @@ def capture_calibration_image():
     final_size = None
     
     for size in sizes_to_try:
-        if size[0] < 3 or size[1] < 3:
+        if size[0] < 3 or size[1] < 3: # Ignorar tamaños muy pequeños
             continue
             
         print(f"🔍 Intentando detectar patrón de {size[0]}x{size[1]}...")
@@ -585,12 +566,11 @@ def capture_calibration_image():
             "url": url_for('static', filename=f"capturas/{filename}")
         })
     else:
-        print("❌ No se pudo detectar el patrón de tablero de ajedrez")
+        print("❌ No se pudo detectar el patrón de tablero de ajedrez con ninguno de los tamaños probados")
         return jsonify({
             "success": False,
             "message": f"No se detectó el patrón. Probado con {sizes_to_try[0]} y {sizes_to_try[1]}. Asegúrate de que el tablero esté iluminado y visible."
         })
-
 
 @app.route('/calibration/compute', methods=['POST'])
 def compute_calibration():
@@ -643,7 +623,6 @@ def compute_calibration():
         "num_images": len(calibration_images)
     })
 
-
 @app.route('/calibration/reset', methods=['POST'])
 def reset_calibration():
     global calibration_images, objpoints, imgpoints
@@ -656,9 +635,9 @@ def reset_calibration():
         "message": "Proceso de calibración reiniciado"
     })
 
-
 @app.route('/calibration/status', methods=['GET'])
 def calibration_status():
+    # Convertir rutas absolutas a URLs relativas
     image_urls = []
     for path in calibration_images:
         filename = os.path.basename(path)
@@ -671,22 +650,29 @@ def calibration_status():
         "image_urls": image_urls
     })
 
-
 @app.route('/calibration/autostart', methods=['POST'])
 def start_auto_calibration():
     global is_auto_calibrating, auto_calib_config, last_auto_capture_time
     data = request.get_json()
+    
+    # Recibir configuración (columnas, filas)
+    # Nota: El usuario ingresa cuadros o esquinas. Usaremos la lógica "inteligente" si falla?
+    # Para video en tiempo real, es mejor ser explícito. 
+    # Asumiremos que el frontend envía las ESQUINAS INTERNAS correctas o lo que el usuario puso.
+    # Podemos aplicar la misma lógica de "intentar N y N-1" pero en tiempo real es costoso.
+    # Por simplicidad, confiaremos en lo que envía el frontend (que ya validamos que puede ser confuso).
+    # Mejor: El frontend debería enviar lo que el usuario puso, y aquí podemos intentar ajustar si no detecta nada?
+    # Vamos a usar lo que envía el frontend directamente.
     
     cols = int(data.get('cols', 7))
     rows = int(data.get('rows', 6))
     
     auto_calib_config = {"rows": rows, "cols": cols}
     is_auto_calibrating = True
-    last_auto_capture_time = time.time()
+    last_auto_capture_time = time.time() # Dar un delay inicial
     
     print(f"🚀 Iniciando calibración automática. Patrón: {cols}x{rows}")
     return jsonify({"success": True, "message": "Calibración automática iniciada"})
-
 
 @app.route('/calibration/autostop', methods=['POST'])
 def stop_auto_calibration():
@@ -695,123 +681,99 @@ def stop_auto_calibration():
     print("🛑 Calibración automática detenida")
     return jsonify({"success": True, "message": "Calibración automática detenida"})
 
-
-# ======================== RUTAS DE CONTROL DE MOTOR (MEJORADAS) ==========================
+@app.route('/set_speed', methods=['POST'])
+def set_speed_route():
+    data = request.get_json()
+    speed_mode = data.get('speed', 'MID') # SLOW, MID, FAST
+    print(f"🏎️ Configurando velocidad a: {speed_mode}")
+    response = send_serial_command(f"SET_SPEED {speed_mode}", wait_for_ok=True)
+    return jsonify({'status': 'success', 'speed': speed_mode, 'message': response})
 
 @app.route('/action/<cmd>', methods=['POST'])
 def control_action(cmd):
-    global step_counter
+    global step_counter, streaming_active # <--- Importante global
     
     if cmd == "left":
-        print(f"🟢 Rotación izquierda iniciada (paso: {step_size}°)")
-        raw_response = send_serial_command("LEFT", wait_for_angle=True)
-        
-        if raw_response.startswith("ANGULO:"):
-            try:
-                step_counter = float(raw_response.split(":")[1].strip())
-            except:
-                step_counter = -1
-        
-        user_message = format_user_message(raw_response, "left")
-        return jsonify({"success": True, "step": step_counter, "message": user_message})
+        # ... (Tu código Left igual) ...
+        print(f"🟢 Botón izquierda presionado")
+        angle_response = send_serial_command("LEFT", wait_for_angle=True)
+        response = angle_response
+        if angle_response.startswith("ANGULO:"):
+             step_counter = float(angle_response.split(":")[1].strip())
+        return jsonify({"success": True, "step": step_counter, "message": response})
         
     elif cmd == "right":
-        print(f"🟢 Rotación derecha iniciada (paso: {step_size}°)")
-        raw_response = send_serial_command("RIGHT", wait_for_angle=True)
-        
-        if raw_response.startswith("ANGULO:"):
-            try:
-                step_counter = float(raw_response.split(":")[1].strip())
-            except:
-                step_counter = -1
-        
-        user_message = format_user_message(raw_response, "right")
-        return jsonify({"success": True, "step": step_counter, "message": user_message})
+        # ... (Tu código Right igual) ...
+        print(f"🟢 Botón derecha presionado")
+        angle_response = send_serial_command("RIGHT", wait_for_angle=True)
+        response = angle_response
+        if angle_response.startswith("ANGULO:"):
+             step_counter = float(angle_response.split(":")[1].strip())
+        return jsonify({"success": True, "step": step_counter, "message": response})
 
     elif cmd == "capture":
-        print("🟢 Captura manual solicitada")
-        
+        # ... (Tu código Capture igual) ...
+        print("🟢 Botón capture presionado")
         angle_response = send_serial_command("READ", wait_for_angle=True)
         current_step = step_counter
-        
         if angle_response.startswith("ANGULO:"):
-            try:
-                current_step = float(angle_response.split(":")[1].strip())
-            except:
-                pass
-        
+            current_step = float(angle_response.split(":")[1].strip())
         success, frame_rgb = capture_high_res_frame()
         if success:
             frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
             filename = f"capture_{current_step:.2f}deg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             path = os.path.join(CAPTURAS_FOLDER, filename)
             cv2.imwrite(path, frame_bgr)
-            
-            return jsonify({
-                "success": True,
-                "step": current_step,
-                "message": f"Imagen capturada en ángulo {current_step:.2f}°",
-                "url": url_for('static', filename=f"capturas/{filename}")
-            })
-        
-        return jsonify({
-            "success": False, 
-            "step": current_step,
-            "message": "Error al capturar la imagen"
-        })
+            return jsonify({"success": True, "step": current_step, "url": url_for('static', filename=f"capturas/{filename}")})
+        return jsonify({"success": False, "step": current_step})
     
     elif cmd == "start_loop":
-        print("🟢 Ciclo continuo iniciado")
-        raw_response = send_serial_command("LOOP")
-        user_message = format_user_message(raw_response, "loop")
-        return jsonify({"success": True, "step": step_counter, "message": user_message})
+        print("🟢 Botón start loop presionado")
+        response = send_serial_command("LOOP")
+        return jsonify({"success": True, "step": step_counter, "message": response})
     
     elif cmd == "start_loop_capture":
-        print("🟢 Ciclo con captura automática iniciado")
-        raw_response = send_serial_command("LOOP_CAPTURE")
-        user_message = format_user_message(raw_response, "loop_capture")
-        return jsonify({"success": True, "message": user_message})
+        print("🟢 Botón loop con captura presionado")
         
+        # 1. DESACTIVAMOS EL STREAMING PARA AHORRAR RECURSOS
+        streaming_active = False 
+        print("🚫 Streaming de video PAUSADO por rendimiento.")
+        
+        response = send_serial_command("LOOP_CAPTURE")
+        return jsonify({"success": True, "message": response})
+
     elif cmd == "stop":
-        print("🔴 Detención solicitada")
-        raw_response = send_serial_command("STOP", wait_for_angle=True)
+        print("🔴 Botón STOP presionado")
         
-        if raw_response.startswith("ANGULO:"):
-            try:
-                step_counter = float(raw_response.split(":")[1].strip())
-            except:
-                pass
+        # 1. REACTIVAMOS EL STREAMING
+        streaming_active = True
+        print("✅ Streaming de video REACTIVADO.")
         
-        user_message = format_user_message(raw_response, "stop")
-        return jsonify({"success": True, "step": step_counter, "message": user_message})
+        angle_response = send_serial_command("STOP", wait_for_angle=True)
+        response = angle_response
+        if angle_response.startswith("ANGULO:"):
+            step_counter = float(angle_response.split(":")[1].strip())
+
+        return jsonify({"success": True, "step": step_counter, "message": response})
    
     return jsonify({"success": True, "step": step_counter})
-
 
 @app.route('/set_step_size', methods=['POST'])
 def set_step_size_route():
     global step_size
     data = request.get_json()
     step_size = int(data.get('step_size', 20))
-    print(f"🔧 Configurando tamaño de paso: {step_size}°")
-    
-    raw_response = send_serial_command(f"SET_ANGLE {step_size}", wait_for_ok=True)
-    user_message = format_user_message(raw_response, "set_angle", angle=step_size)
-    
-    return jsonify({
-        'status': 'success', 
-        'step_size': step_size, 
-        'message': user_message
-    })
+    print(f"🔧 Tamaño de paso configurado (grados): {step_size}")
+    response = send_serial_command(f"SET_ANGLE {step_size}", wait_for_ok=True)
+    return jsonify({'status': 'success', 'step_size': step_size, 'message': response})
 
+    
 
-# ======================== RUTAS ADICIONALES ==========================
 
 @app.route('/video_feed_color')
 def video_feed_color():
     return Response(generate_color_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
-
 
 @app.route('/set_thresholds', methods=['POST'])
 def set_thresholds():
@@ -824,7 +786,6 @@ def set_thresholds():
     color_thresholds["b_max"] = int(data.get("b_max", 255))
     return jsonify(success=True, thresholds=color_thresholds)
 
-
 @app.route("/ajustes/color")
 def ajustes_color_list():
     if not os.path.exists(COLOR_FOLDER):
@@ -832,11 +793,9 @@ def ajustes_color_list():
     archivos = [f for f in os.listdir(COLOR_FOLDER) if f.endswith(".json")]
     return render_template("ajustes_color.html", archivos=archivos)
 
-
 @app.route("/ajustes/color/nueva")
 def nueva_calibracion_color():
     return render_template("nueva_calibracion_color.html")
-
 
 @app.route('/capture', methods=['POST'])
 def capture():
@@ -844,7 +803,7 @@ def capture():
     success, frame_rgb = capture_high_res_frame()
     if not success:
         return jsonify({"success": False})
-    frame_bgr = frame_rgb
+    frame_bgr = frame_bgr #cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
     path = os.path.join(CAPTURAS_FOLDER, filename)
     cv2.imwrite(path, frame_bgr)
@@ -852,7 +811,6 @@ def capture():
         "success": True,
         "url": url_for('static', filename=f"capturas/{filename}")
     })
-
 
 @app.route("/ajustes/camara/cancelar")
 def cancelar_calibracion():
@@ -865,11 +823,9 @@ def cancelar_calibracion():
                 print(f"Error eliminando {file}: {e}")
     return redirect(url_for("ajustes"))
 
-
 @app.route('/control')
 def control():
     return render_template("control.html")
-
 
 @app.route('/view')
 def view_list():
@@ -878,11 +834,9 @@ def view_list():
         archivos = [f for f in os.listdir(MAPS_FOLDER) if f.endswith(".csv")]
     return render_template("view_list.html", archivos=archivos)
 
-
 @app.route('/ajustes')
 def ajustes():
     return render_template("ajustes.html")
-
 
 @app.route('/ajustes/camara/nueva')
 def nueva_calibracion():
@@ -892,12 +846,10 @@ def nueva_calibracion():
     imgpoints = []
     return render_template("nueva_calibracion.html")
 
-
 @app.route('/video_feed')
 def video_feed():
     return Response(gen_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
-
 
 @app.route('/ajustes/camara')
 def ajustes_camara():
@@ -905,7 +857,6 @@ def ajustes_camara():
     if os.path.exists(CALIB_FOLDER):
         archivos = [f for f in os.listdir(CALIB_FOLDER) if f.endswith(".json")]
     return render_template("ajustes_camara.html", archivos=archivos)
-
 
 @app.route('/view/<nombre>')
 def view_plot(nombre):
@@ -920,28 +871,49 @@ def view_plot(nombre):
                 z.append(float(row["z"]))
     return render_template("view_plot.html", nombre=nombre, x=x, y=y, z=z)
 
-
-# ======================== INICIALIZACIÓN ==========================
-
-if __name__ == '__main__':
+'''if __name__ == '__main__':
+    # ======================== INICIALIZACIÓN SERIAL SEGURO (MOVIMIENTO) ==========================
+    # La conexión serial se realiza justo antes de ejecutar Flask. 
+    # Si falla, ser es None, pero Flask se inicia.
     try:
-        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
-        print(f"✅ Conexión serial establecida en {SERIAL_PORT}")
-        time.sleep(2)
-    except Exception as e:
-        print(f"❌ Error de conexión serial: {e}")
-        print("⚠️ La aplicación iniciará sin control de motor")
+        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1) 
+        print(f"✅ Conexión serial establecida en {SERIAL_PORT} a {BAUDRATE} baudios.")
+        time.sleep(2) # Esperar a que la Pico se reinicie
+    except serial.SerialException as e:
+        print(f"❌ Error al conectar al puerto serial {SERIAL_PORT}: {e}")
+        print("La aplicación web se iniciará, pero las funciones de motor no funcionarán.")
         ser = None
-
-    listener = threading.Thread(target=serial_listener, daemon=True)
-    listener.start()
-    print("🔵 Sistema de monitoreo serial iniciado")
-
+    # =================================================================================
+    
     try:
         app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    except Exception as e:
+        print(f"Error al iniciar la aplicación: {e}")
     finally:
+        # Detener la cámara al cerrar
         if picam2.started:
             picam2.stop()
         if ser is not None and ser.is_open:
             ser.close()
-            print("Puerto serial cerrado")
+            print("Puerto serial cerrado.")
+        cv2.destroyAllWindows()'''
+
+
+if __name__ == '__main__':
+
+    # Intentar abrir puerto
+    try:
+        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
+        print(f"✅ Serial conectado en {SERIAL_PORT}")
+        time.sleep(2)
+    except Exception as e:
+        print(f"❌ Error serial: {e}")
+        ser = None
+
+    # Iniciar thread listener
+    listener = threading.Thread(target=serial_listener, daemon=True)
+    listener.start()
+    print("🔵 Hilo SERIAL LISTENER iniciado")
+
+    # Ejecutar Flask
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
