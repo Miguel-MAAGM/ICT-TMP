@@ -1,376 +1,563 @@
 {% extends "base.html" %}
-{% block title %}Control{% endblock %}
-{% block content %}
 
+{% block title %}Control de Escaneo{% endblock %}
+
+{% block extra_head %}
 <style>
-    :root {
-        --primary-blue: #2563eb;
-        --primary-blue-hover: #1d4ed8;
-        --secondary-slate: #475569;
-        --secondary-slate-hover: #334155;
-        --accent-orange: #f97316;
-        --accent-orange-hover: #ea580c;
-        --success-green: #10b981;
-        --success-green-hover: #059669;
-        --danger-red: #ef4444; 
-        --danger-red-hover: #dc2626;
-        --purple-royal: #7c3aed;
-        --purple-royal-hover: #6d28d9;
-        --bg-gray: #f8fafc;
-        --border-gray: #e2e8f0;
-        --text-dark: #1e293b;
-        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    body {
-        background: var(--bg-gray);
-    }
-
     .control-container {
-        max-width: 1400px; /* Más ancho para que quepan las 3 columnas */
+        max-width: 900px;
         margin: 0 auto;
-        padding: 20px;
     }
 
-    .page-title {
-        text-align: center;
-        color: var(--text-dark);
-        margin-bottom: 20px;
-    }
-
-    /* === GRID LAYOUT PRINCIPAL (3 COLUMNAS) === */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: 250px 1fr 250px; /* Izquierda Fija | Centro Flexible | Derecha Fija */
-        gap: 20px;
-        align-items: start;
-    }
-
-    /* === COLUMNA IZQUIERDA (MOVIMIENTO) === */
-    .col-left {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
+    .step-section {
+        margin-bottom: 25px;
+        padding: 25px;
         background: white;
-        padding: 20px;
         border-radius: 12px;
-        box-shadow: var(--shadow);
-        border: 1px solid var(--border-gray);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 5px solid #667eea;
+        transition: all 0.3s ease;
     }
 
-    .panel-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--secondary-slate);
-        text-align: center;
-        margin-bottom: 10px;
-        border-bottom: 2px solid var(--border-gray);
-        padding-bottom: 5px;
+    .step-section:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
     }
 
-    /* Control de Pasos */
-    .step-input-group {
+    .step-header {
         display: flex;
-        flex-direction: column;
-        gap: 5px;
-        margin-bottom: 10px;
-    }
-    
-    .step-input-row {
-        display: flex;
-        gap: 5px;
+        align-items: center;
+        margin-bottom: 15px;
     }
 
-    .step-input-row input {
-        width: 100%;
-        padding: 8px;
-        border: 2px solid var(--border-gray);
-        border-radius: 6px;
+    .step-number {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: bold;
-        text-align: center;
-        font-size: 1.1rem;
+        font-size: 18px;
+        margin-right: 15px;
+        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
     }
 
-    /* Flechas */
-    .arrows-row {
-        display: flex;
-        gap: 10px;
+    .step-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #2d3748;
     }
 
-    .arrows-row button {
-        flex: 1; /* Ocupan 50% cada uno */
-        font-size: 2rem;
-        padding: 10px;
+    .step-description {
+        color: #718096;
+        margin-bottom: 15px;
+        font-size: 14px;
+        line-height: 1.5;
     }
 
-    /* === COLUMNA CENTRAL (VIDEO + ACCIONES RÁPIDAS) === */
-    .col-center {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-    }
-
-    .video-frame {
+    .btn {
         width: 100%;
-        background: black;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: var(--shadow);
-        border: 2px solid var(--border-gray);
-        /* Relación de aspecto para evitar saltos */
-        aspect-ratio: 16 / 9; 
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        padding: 15px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    .video-frame img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
     }
 
-    .center-actions {
-        display: flex;
-        gap: 20px;
-        width: 100%;
-        justify-content: center;
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
     }
 
-    /* === COLUMNA DERECHA (AUTOMATIZACIÓN) === */
-    .col-right {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: var(--shadow);
-        border: 1px solid var(--border-gray);
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
 
-    /* Velocidad Vertical */
-    .speed-vertical {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+    .btn-success {
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(245, 101, 101, 0.4);
+    }
+
+    .speed-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
     }
 
     .btn-speed {
-        padding: 10px;
-        border: 1px solid var(--border-gray);
-        background: #f1f5f9;
-        border-radius: 6px;
-        cursor: pointer;
+        padding: 15px 10px;
+        background: white;
+        border: 2px solid #e2e8f0;
+        color: #2d3748;
         font-weight: 600;
-        transition: all 0.2s;
-    }
-
-    .btn-speed:hover { background: #e2e8f0; }
-    
-    .btn-speed.active { 
-        background: var(--primary-blue); 
-        color: white; 
-        border-color: var(--primary-blue);
-    }
-    .btn-speed.slow.active { background: var(--success-green); border-color: var(--success-green); }
-    .btn-speed.mid.active { background: var(--primary-blue); border-color: var(--primary-blue); }
-    .btn-speed.fast.active { background: var(--accent-orange); border-color: var(--accent-orange); }
-
-    /* === BOTONES COMUNES === */
-    button.main-btn {
-        border: none;
-        padding: 12px;
         border-radius: 8px;
-        font-weight: 600;
         cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-speed.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
-    
-    button.main-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-    button.main-btn:active { transform: translateY(0); }
 
-    .btn-blue { background: var(--primary-blue); }
-    .btn-blue:hover { background: var(--primary-blue-hover); }
+    .btn-speed:hover:not(:disabled) {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
 
-    .btn-green { background: var(--success-green); }
-    .btn-green:hover { background: var(--success-green-hover); }
+    .btn-speed small {
+        display: block;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 5px;
+    }
 
-    .btn-orange { background: var(--accent-orange); }
-    .btn-orange:hover { background: var(--accent-orange-hover); }
+    .status-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+        text-align: center;
+    }
 
-    .btn-purple { background: var(--purple-royal); }
-    .btn-purple:hover { background: var(--purple-royal-hover); }
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 10px;
+        animation: pulse 2s infinite;
+    }
 
-    .btn-red { background: var(--danger-red); font-size: 1.2rem; padding: 15px 40px; }
-    .btn-red:hover { background: var(--danger-red-hover); }
+    .status-idle { background: #cbd5e0; }
+    .status-running { background: #48bb78; }
+    .status-error { background: #f56565; }
 
-    .btn-photo { background: var(--secondary-slate); font-size: 1.2rem; padding: 15px 40px; }
-    .btn-photo:hover { background: var(--secondary-slate-hover); }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.1); }
+    }
 
-    /* === RESPONSIVE (Móvil) === */
-    @media (max-width: 900px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr; /* Una sola columna */
-            grid-template-areas: 
-                "center"
-                "left"
-                "right";
+    .status-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    /* LOG DE LA PICO */
+    .log-container {
+        background: #1a202c;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .log-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #2d3748;
+    }
+
+    .log-title {
+        color: #48bb78;
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .log-badge {
+        background: #48bb78;
+        color: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .log-content {
+        background: #000000;
+        border-radius: 8px;
+        padding: 15px;
+        height: 400px;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #cbd5e0;
+        border: 1px solid #2d3748;
+    }
+
+    .log-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .log-content::-webkit-scrollbar-track {
+        background: #1a202c;
+        border-radius: 4px;
+    }
+
+    .log-content::-webkit-scrollbar-thumb {
+        background: #4a5568;
+        border-radius: 4px;
+    }
+
+    .log-content::-webkit-scrollbar-thumb:hover {
+        background: #667eea;
+    }
+
+    .log-line {
+        margin-bottom: 5px;
+        padding: 3px 5px;
+        border-radius: 3px;
+    }
+
+    .log-line.foto {
+        background: #234e52;
+        color: #81e6d9;
+        font-weight: 600;
+    }
+
+    .log-line.error {
+        background: #742a2a;
+        color: #fc8181;
+    }
+
+    .log-line.success {
+        background: #22543d;
+        color: #9ae6b4;
+    }
+
+    .log-line.info {
+        color: #90cdf4;
+    }
+
+    .btn-clear-log {
+        background: #2d3748;
+        color: #cbd5e0;
+        border: 1px solid #4a5568;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-clear-log:hover {
+        background: #4a5568;
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .speed-buttons {
+            grid-template-columns: 1fr;
         }
-        .col-center { grid-area: center; }
-        .col-left { grid-area: left; }
-        .col-right { grid-area: right; }
+        
+        .log-content {
+            height: 300px;
+            font-size: 12px;
+        }
     }
-
-    /* TOAST (Igual que antes) */
-    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-    .toast { background: white; color: var(--text-dark); padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); display: flex; align-items: center; gap: 12px; min-width: 280px; transform: translateX(400px); opacity: 0; transition: all 0.3s ease; }
-    .toast.show { transform: translateX(0); opacity: 1; }
-    .toast.hide { transform: translateX(400px); opacity: 0; }
-    .toast.success { border-left: 4px solid var(--success-green); }
-    .toast.info { border-left: 4px solid var(--primary-blue); }
-    .toast.warning { border-left: 4px solid var(--accent-orange); }
-    .toast.danger { border-left: 4px solid var(--danger-red); }
-
 </style>
+{% endblock %}
 
+{% block content %}
 <div class="control-container">
-    <h2 class="page-title">Panel de Control</h2>
+    
+    <!-- STATUS CARD -->
+    <div class="status-card">
+        <span class="status-indicator status-idle" id="statusIndicator"></span>
+        <span class="status-text" id="statusText">Sistema Inactivo</span>
+    </div>
 
-    <div class="dashboard-grid">
-
-        <div class="col-left">
-            <div class="panel-title">Movimiento</div>
-
-            <div class="step-input-group">
-                <label>Paso (°):</label>
-                <div class="step-input-row">
-                    <input type="number" id="step-size" value="20" min="1" max="360">
-                    <button class="main-btn btn-green" onclick="setStepSize()">Set</button>
-                </div>
-            </div>
-
-            <div class="arrows-row">
-                <button class="main-btn btn-blue" onclick="sendAction('left')">⬅</button>
-                <button class="main-btn btn-blue" onclick="sendAction('right')">➡</button>
-            </div>
+    <!-- PASO 1: AUTO HOME -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">🏠 Inicializar Sistema</div>
         </div>
+        <p class="step-description">Lleva el motor a la posición inicial (HOME) antes de comenzar el escaneo.</p>
+        <button class="btn btn-primary" id="btnAutoHome" onclick="autoHome()">
+            EJECUTAR AUTO HOME
+        </button>
+    </div>
 
-        <div class="col-center">
-            
-            <div class="video-frame">
-                <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
-            </div>
-
-            <div class="center-actions">
-                <button class="main-btn btn-red" onclick="sendAction('stop')">
-                    🛑 STOP
-                </button>
-                <button class="main-btn btn-photo" onclick="sendAction('capture')">
-                    📸 FOTO
-                </button>
-            </div>
-
+    <!-- PASO 2: VELOCIDAD -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">⚙️ Seleccionar Velocidad</div>
         </div>
-
-        <div class="col-right">
-            <div class="panel-title">Automatización</div>
-
-            <label style="font-weight:600; font-size:0.9rem;">Velocidad:</label>
-            <div class="speed-vertical">
-                <button class="btn-speed slow" onclick="setSpeed('SLOW', this)">Lento</button>
-                <button class="btn-speed mid active" onclick="setSpeed('MID', this)">Medio</button>
-                <button class="btn-speed fast" onclick="setSpeed('FAST', this)">Rápido</button>
-            </div>
-
-            <hr style="border:0; border-top:1px solid #e2e8f0; width:100%; margin: 5px 0;">
-
-            <button class="main-btn btn-purple" onclick="sendAction('start_loop_capture')">
-                📸🔄 Escaneo (No Video)
+        <p class="step-description">Configura la cantidad de pasos del motor entre cada captura fotográfica.</p>
+        <div class="speed-buttons">
+            <button class="btn-speed" id="btnSlow" onclick="setSpeed('SLOW')" disabled>
+                🐢 LENTO<br><small>1 paso/foto</small>
+            </button>
+            <button class="btn-speed active" id="btnMid" onclick="setSpeed('MID')" disabled>
+                🚶 MEDIO<br><small>50 pasos/foto</small>
+            </button>
+            <button class="btn-speed" id="btnFast" onclick="setSpeed('FAST')" disabled>
+                🏃 RÁPIDO<br><small>100 pasos/foto</small>
             </button>
         </div>
-
     </div>
+
+    <!-- PASO 3: LOOP CAPTURE -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">📸 Iniciar Escaneo</div>
+        </div>
+        <p class="step-description">Comienza el barrido automático. El motor se moverá entre los endstops capturando fotos continuamente.</p>
+        <button class="btn btn-success" id="btnLoopCapture" onclick="startLoopCapture()" disabled>
+            INICIAR LOOP CAPTURE
+        </button>
+    </div>
+
+    <!-- PASO 4: STOP -->
+    <div class="step-section">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">⛔ Detener Escaneo</div>
+        </div>
+        <p class="step-description">Finaliza el proceso de captura y detiene el movimiento del motor.</p>
+        <button class="btn btn-danger" id="btnStop" onclick="stopCapture()" disabled>
+            DETENER ESCANEO
+        </button>
+    </div>
+
+    <!-- LOG EN TIEMPO REAL -->
+    <div class="log-container">
+        <div class="log-header">
+            <div class="log-title">
+                <span>📡</span>
+                <span>Comunicación con Raspberry Pi Pico</span>
+                <span class="log-badge" id="logCount">0 mensajes</span>
+            </div>
+            <button class="btn-clear-log" onclick="clearLog()">🗑️ Limpiar</button>
+        </div>
+        <div class="log-content" id="logContent">
+            <div class="log-line info">Esperando mensajes de la Pico...</div>
+        </div>
+    </div>
+
 </div>
 
-<div class="toast-container" id="toast-container"></div>
-
 <script>
-// --- JAVASCRIPT IDÉNTICO AL ANTERIOR (Solo funciones lógicas) ---
+    let currentSpeed = 'MID';
+    let isScanning = false;
+    let homeCompleted = false;
+    let logMessages = [];
 
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    const icons = { success: '✓', info: 'ℹ', warning: '⚠', danger: '✕' };
-    toast.innerHTML = `<span style="font-size:1.2rem">${icons[type] || icons.info}</span><span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-        toast.classList.add('hide');
-        setTimeout(() => container.removeChild(toast), 300);
-    }, 3000);
-}
+    function updateStatus(message, type = 'idle') {
+        const indicator = document.getElementById('statusIndicator');
+        const text = document.getElementById('statusText');
+        
+        text.textContent = message;
+        indicator.className = 'status-indicator status-' + type;
+    }
 
-function setSpeed(mode, btnElement) {
-    document.querySelectorAll('.btn-speed').forEach(b => b.classList.remove('active'));
-    btnElement.classList.add('active');
-    fetch('/set_speed', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ speed: mode })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.status === 'success') showToast(`Velocidad: ${mode}`, 'success');
-        else showToast('Error velocidad', 'danger');
-    }).catch(err => showToast('Error conexión', 'danger'));
-}
+    function updateButtonStates() {
+        document.getElementById('btnAutoHome').disabled = isScanning;
+        document.getElementById('btnSlow').disabled = !homeCompleted || isScanning;
+        document.getElementById('btnMid').disabled = !homeCompleted || isScanning;
+        document.getElementById('btnFast').disabled = !homeCompleted || isScanning;
+        document.getElementById('btnLoopCapture').disabled = !homeCompleted || isScanning;
+        document.getElementById('btnStop').disabled = !isScanning;
+    }
 
-function setStepSize() {
-    const stepInput = document.getElementById('step-size');
-    const val = parseInt(stepInput.value);
-    fetch('/set_step_size', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step_size: val })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-             showToast(`Paso: ${val}°`, 'success');
-             stepInput.style.borderColor = '#10b981';
-             setTimeout(() => stepInput.style.borderColor = '#e2e8f0', 1000);
-        } else showToast('Error paso', 'warning');
-    }).catch(err => showToast('Error red', 'danger'));
-}
+    function addLogMessage(message, type = 'info') {
+        const logContent = document.getElementById('logContent');
+        const logLine = document.createElement('div');
+        logLine.className = 'log-line ' + type;
+        
+        const timestamp = new Date().toLocaleTimeString('es-CL', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+        
+        logLine.textContent = `[${timestamp}] ${message}`;
+        logContent.appendChild(logLine);
+        
+        // Auto-scroll al final
+        logContent.scrollTop = logContent.scrollHeight;
+        
+        logMessages.push(message);
+        document.getElementById('logCount').textContent = `${logMessages.length} mensajes`;
+    }
 
-function sendAction(action) {
-    const messages = {
-        'left': '⬅ Izquierda...', 'right': '➡ Derecha...',
-        'capture': '📸 Capturando...', 'start_loop': '🔄 Loop Video...',
-        'start_loop_capture': '🚀 Escaneo (No Video)...', 'stop': '🛑 STOP...'
-    };
-    showToast(messages[action], 'info');
-    fetch(`/action/${action}`, { method: "POST" })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                if (action === 'capture') showToast(`Foto OK: ${data.step}°`, 'success');
-                else if (action === 'start_loop_capture') showToast('Escaneo iniciado.', 'warning');
-                else if (action === 'stop') showToast('STOP OK', 'danger');
-                else showToast('Comando OK', 'success');
-            } else showToast(`Error: ${data.message}`, 'danger');
-        }).catch(err => showToast('Error conexión', 'danger'));
-}
+    function clearLog() {
+        document.getElementById('logContent').innerHTML = '<div class="log-line info">Log limpiado</div>';
+        logMessages = [];
+        document.getElementById('logCount').textContent = '0 mensajes';
+    }
 
-// Enter en el input de pasos
-document.getElementById('step-size').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') setStepSize();
-});
+    // ========== POLLING DE LOGS DESDE LA PICO ==========
+    async function fetchSerialLog() {
+        try {
+            const response = await fetch('/serial_log');
+            const html = await response.text();
+            
+            // Parsear los mensajes nuevos
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const messages = tempDiv.textContent.trim().split('\n');
+            
+            messages.forEach(msg => {
+                if (!msg || logMessages.includes(msg)) return; // Evitar duplicados
+                
+                let type = 'info';
+                if (msg.includes('FOTO')) type = 'foto';
+                else if (msg.includes('ERROR') || msg.includes('⚠️')) type = 'error';
+                else if (msg.includes('✅') || msg.includes('COMPLETADO')) type = 'success';
+                
+                addLogMessage(msg, type);
+            });
+        } catch (error) {
+            console.error('Error fetching serial log:', error);
+        }
+    }
+
+    // Polling cada 500ms
+    setInterval(fetchSerialLog, 500);
+
+    // ========== CONTROL DE ACCIONES ==========
+    async function autoHome() {
+        updateStatus('🏠 Ejecutando AUTO HOME...', 'running');
+        addLogMessage('→ Enviando comando AUTO_HOME', 'info');
+        document.getElementById('btnAutoHome').disabled = true;
+
+        try {
+            const response = await fetch('/action/auto_home', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success !== false) {
+                homeCompleted = true;
+                updateStatus('✅ HOME completado. Selecciona velocidad', 'running');
+                addLogMessage('✅ AUTO HOME completado exitosamente', 'success');
+                updateButtonStates();
+            } else {
+                updateStatus('❌ Error en AUTO HOME', 'error');
+                addLogMessage('❌ Error ejecutando AUTO HOME', 'error');
+            }
+        } catch (error) {
+            updateStatus('❌ Error de comunicación', 'error');
+            addLogMessage('❌ Error de comunicación con el servidor', 'error');
+            console.error(error);
+        } finally {
+            document.getElementById('btnAutoHome').disabled = false;
+            updateButtonStates();
+        }
+    }
+
+    async function setSpeed(speed) {
+        currentSpeed = speed;
+        updateStatus(`⚙️ Configurando velocidad: ${speed}`, 'running');
+        addLogMessage(`→ Cambiando velocidad a ${speed}`, 'info');
+
+        document.querySelectorAll('.btn-speed').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn' + speed.charAt(0) + speed.slice(1).toLowerCase()).classList.add('active');
+
+        try {
+            const response = await fetch(`/action/capture_${speed.toLowerCase()}`, { method: 'POST' });
+            const data = await response.json();
+
+            updateStatus(`✅ Velocidad ${speed}. Listo para escanear`, 'running');
+            addLogMessage(`✅ Velocidad configurada: ${speed}`, 'success');
+            updateButtonStates();
+        } catch (error) {
+            updateStatus('❌ Error configurando velocidad', 'error');
+            addLogMessage('❌ Error al configurar velocidad', 'error');
+            console.error(error);
+        }
+    }
+
+    async function startLoopCapture() {
+        if (!homeCompleted) {
+            alert('⚠️ Primero ejecuta AUTO HOME');
+            return;
+        }
+
+        isScanning = true;
+        updateStatus('📸 ESCANEANDO... (loop continuo)', 'running');
+        addLogMessage('🚀 Iniciando LOOP CAPTURE', 'success');
+        updateButtonStates();
+
+        try {
+            const response = await fetch('/action/start_loop_capture', { method: 'POST' });
+            const data = await response.json();
+            
+            addLogMessage('📸 Loop activo. Presiona STOP para finalizar', 'info');
+        } catch (error) {
+            updateStatus('❌ Error iniciando escaneo', 'error');
+            addLogMessage('❌ Error al iniciar loop capture', 'error');
+            isScanning = false;
+            updateButtonStates();
+            console.error(error);
+        }
+    }
+
+    async function stopCapture() {
+        updateStatus('⏹️ Deteniendo escaneo...', 'running');
+        addLogMessage('→ Enviando comando STOP', 'info');
+
+        try {
+            const response = await fetch('/action/stop', { method: 'POST' });
+            const data = await response.json();
+
+            isScanning = false;
+            updateStatus('✅ Escaneo finalizado', 'idle');
+            addLogMessage('✅ Escaneo detenido correctamente', 'success');
+            updateButtonStates();
+        } catch (error) {
+            updateStatus('❌ Error deteniendo escaneo', 'error');
+            addLogMessage('❌ Error al detener escaneo', 'error');
+            console.error(error);
+        }
+    }
+
+    // Inicializar
+    updateButtonStates();
+    addLogMessage('Sistema iniciado. Ejecuta AUTO HOME para comenzar', 'info');
 </script>
-
 {% endblock %}
