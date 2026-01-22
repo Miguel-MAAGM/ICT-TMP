@@ -1,395 +1,403 @@
 {% extends "base.html" %}
 
-{% block title %}Control de Escaneo{% endblock %}
+{% block title %}Control de Escaneo 3D{% endblock %}
 
 {% block extra_head %}
 <style>
-    * {
-        box-sizing: border-box;
+    :root {
+        --step-1-color: #0d6efd; /* Azul */
+        --step-2-color: #198754; /* Verde */
+        --step-3-color: #0dcaf0; /* Cyan/Info */
+        --stop-color: #dc3545;   /* Rojo */
     }
 
     body {
-        background: #f5f7fa;
+        background-color: #f0f2f5;
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
 
-    .page-header {
-        background: white;
-        padding: 25px 30px;
-        margin: -20px -20px 30px -20px;
-        border-bottom: 3px solid #e2e8f0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .page-header h1 {
-        font-size: 28px;
-        color: #2d3748;
-        margin: 0;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .control-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 30px;
-    }
-
-    /* Layout principal en 3 columnas */
-    .steps-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 25px;
-        margin-bottom: 25px;
-    }
-
-    .step-section {
-        background: white;
-        border-radius: 12px;
-        padding: 25px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border: 2px solid #e2e8f0;
-    }
-
-    .step-section h2 {
-        font-size: 18px;
-        color: #2d3748;
-        margin: 0 0 8px 0;
-        font-weight: 700;
-    }
-
-    .step-section p {
-        font-size: 14px;
-        color: #718096;
-        margin: 0 0 20px 0;
-    }
-
-    /* Botón principal GRANDE */
-    .btn-main {
-        width: 100%;
-        padding: 35px 20px;
+    /* Tarjetas de pasos */
+    .step-card {
         border: none;
-        border-radius: 10px;
-        font-size: 20px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s ease;
+        border-radius: 15px;
+        background: white;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .step-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .step-header {
+        padding: 15px;
+        font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 1px;
         color: white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .btn-main:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-    }
-
-    .btn-main:active {
-        transform: translateY(-1px);
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-    }
-
-    .btn-success {
-        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-    }
-
-    .btn-danger {
-        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-    }
-
-    /* Botones de velocidad */
-    .speed-buttons {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-    }
-
-    .btn-speed {
-        padding: 30px 15px;
-        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
-        border: none;
-        border-radius: 10px;
-        color: white;
-        font-size: 18px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-transform: uppercase;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .btn-speed:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(20, 184, 166, 0.4);
-    }
-
-    .btn-speed.active {
-        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.5);
-        transform: scale(1.05);
-    }
-
-    .btn-speed small {
-        display: block;
-        font-size: 11px;
-        margin-top: 5px;
-        opacity: 0.9;
-        font-weight: 500;
-    }
-
-    /* Botón STOP grande que ocupa todo el ancho */
-    .stop-section {
-        background: white;
-        border-radius: 12px;
-        padding: 25px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border: 2px solid #e2e8f0;
-        margin-bottom: 25px;
-    }
-
-    .stop-section h2 {
-        font-size: 18px;
-        color: #2d3748;
-        margin: 0 0 20px 0;
-        font-weight: 700;
         text-align: center;
     }
 
-    /* Mensaje recibido */
-    .message-section {
-        background: white;
-        border-radius: 12px;
+    .step-body {
         padding: 25px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border: 2px solid #e2e8f0;
-    }
-
-    .message-header {
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        justify-content: center;
         align-items: center;
-        margin-bottom: 15px;
+        gap: 15px;
     }
 
-    .message-header h2 {
-        font-size: 18px;
-        color: #2d3748;
-        margin: 0;
-        font-weight: 700;
+    /* Iconos grandes */
+    .step-icon {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        opacity: 0.8;
     }
 
-    .photo-count {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: 700;
-        box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
-    }
-
-    .message-display {
-        background: #1a202c;
-        border-radius: 8px;
+    /* Botones grandes principales */
+    .btn-action-lg {
+        width: 100%;
         padding: 20px;
-        min-height: 80px;
-        font-family: 'Courier New', monospace;
-        font-size: 16px;
-        color: #48bb78;
-        font-weight: 600;
+        font-size: 1.2rem;
+        font-weight: 700;
+        border-radius: 12px;
+        text-transform: uppercase;
         display: flex;
         align-items: center;
         justify-content: center;
-        text-align: center;
-        border: 1px solid #2d3748;
+        gap: 10px;
+        transition: all 0.3s ease;
     }
 
-    .message-display.empty {
-        color: #718096;
-        font-style: italic;
+    /* Botones de velocidad */
+    .btn-speed {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e9ecef;
+        background-color: white;
+        color: #495057;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.2s;
     }
 
-    @media (max-width: 1024px) {
-        .steps-grid {
-            grid-template-columns: 1fr;
-        }
+    .btn-speed:hover {
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+    }
 
-        .speed-buttons {
-            grid-template-columns: 1fr;
-        }
+    .btn-speed.active {
+        background-color: var(--step-2-color);
+        color: white;
+        border-color: var(--step-2-color);
+        box-shadow: 0 4px 10px rgba(25, 135, 84, 0.3);
+    }
+
+    /* Botón STOP */
+    .btn-stop-huge {
+        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        color: white;
+        font-size: 2rem;
+        font-weight: 900;
+        letter-spacing: 2px;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 6px 15px rgba(220, 53, 69, 0.4);
+        transition: all 0.1s;
+    }
+
+    .btn-stop-huge:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 5px rgba(220, 53, 69, 0.4);
+    }
+
+    /* Terminal de logs */
+    .terminal-window {
+        background-color: #1e1e1e;
+        color: #00ff00;
+        font-family: 'Courier New', monospace;
+        padding: 15px;
+        border-radius: 10px;
+        height: 150px;
+        overflow-y: auto;
+        border: 1px solid #333;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+    
+    .status-bar {
+        background: white;
+        padding: 10px 20px;
+        border-radius: 50px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 20px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>🎮 Control de Escaneo 3D</h1>
-</div>
-
-<div class="control-container">
+<div class="container-fluid py-4" style="max-width: 1600px;">
     
-    <!-- GRID DE 3 PASOS -->
-    <div class="steps-grid">
-        
-        <!-- PASO 1: AUTO HOME -->
-        <div class="step-section">
-            <h2>1. Inicia con el Auto home</h2>
-            <p>Lleva el motor a la posición inicial (HOME) antes de comenzar el escaneo.</p>
-            <button class="btn-main btn-primary" onclick="autoHome()">
-                AUTOHOME
-            </button>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-box-seam me-2"></i>Control de Escaneo 3D</h2>
+            <p class="text-muted mb-0">Panel de control principal del sistema rotacional</p>
         </div>
+        
+        <div class="status-bar">
+            <div id="status-indicator" class="spinner-border spinner-border-sm text-primary" role="status" style="display: none;"></div>
+            <i id="status-icon" class="bi bi-check-circle-fill text-success"></i>
+            <span id="system-status-text">Sistema listo</span>
+            <span class="badge bg-dark ms-2" id="photo-counter">0 Fotos</span>
+        </div>
+    </div>
 
-        <!-- PASO 2: VELOCIDAD -->
-        <div class="step-section">
-            <h2>2. Selecciona la velocidad de captura</h2>
-            <p>Configura la cantidad de pasos del motor entre cada captura fotográfica.</p>
-            <div class="speed-buttons">
-                <button class="btn-speed" id="btnSlow" onclick="setSpeed('SLOW')">
-                    LENTO
-                    <small>1 paso/foto</small>
-                </button>
-                <button class="btn-speed active" id="btnMid" onclick="setSpeed('MID')">
-                    MEDIO
-                    <small>50 pasos/foto</small>
-                </button>
-                <button class="btn-speed" id="btnFast" onclick="setSpeed('FAST')">
-                    RÁPIDO
-                    <small>100 pasos/foto</small>
-                </button>
+    <div class="row g-4 mb-4">
+        
+        <div class="col-lg-4">
+            <div class="step-card">
+                <div class="step-header bg-primary">
+                    1. Posición Inicial
+                </div>
+                <div class="step-body">
+                    <i class="bi bi-house-door step-icon text-primary"></i>
+                    <p class="text-center text-muted">Lleva el motor a la posición cero (Home) detectando los fines de carrera.</p>
+                    <button class="btn btn-primary btn-action-lg" onclick="triggerAction('auto_home', 'Iniciando Auto Home...', 'Auto Home iniciado')">
+                        <i class="bi bi-arrow-counterclockwise"></i> AUTO HOME
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- PASO 3: LOOP CAPTURE -->
-        <div class="step-section">
-            <h2>3. Inicia con el Loop de Captura</h2>
-            <p>Comienza el barrido automático. El motor se moverá entre los endstops capturando fotos.</p>
-            <button class="btn-main btn-success" onclick="startLoopCapture()">
-                LOOP CAPTURE
+        <div class="col-lg-4">
+            <div class="step-card">
+                <div class="step-header bg-success">
+                    2. Configurar Velocidad
+                </div>
+                <div class="step-body w-100">
+                    <i class="bi bi-speedometer2 step-icon text-success"></i>
+                    <p class="text-center text-muted mb-3">Define cuántos pasos avanza el motor por cada foto.</p>
+                    
+                    <div class="d-flex flex-column gap-2 w-100">
+                        <button class="btn btn-speed" id="btn-slow" onclick="setSpeed('SLOW')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>🐢 LENTO</span>
+                                <small class="text-muted">1 paso/foto</small>
+                            </div>
+                        </button>
+                        <button class="btn btn-speed active" id="btn-mid" onclick="setSpeed('MID')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>🚶 MEDIO</span>
+                                <small class="text-muted">50 pasos/foto</small>
+                            </div>
+                        </button>
+                        <button class="btn btn-speed" id="btn-fast" onclick="setSpeed('FAST')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>🏃 RÁPIDO</span>
+                                <small class="text-muted">100 pasos/foto</small>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="step-card">
+                <div class="step-header bg-info text-dark">
+                    3. Iniciar Escaneo
+                </div>
+                <div class="step-body">
+                    <i class="bi bi-camera-reels step-icon text-info"></i>
+                    <p class="text-center text-muted">Comienza la secuencia automática de giro y captura fotográfica.</p>
+                    <button class="btn btn-info btn-action-lg text-white" onclick="triggerAction('start_loop_capture', 'Arrancando secuencia...', 'Loop de captura iniciado')">
+                        <i class="bi bi-play-circle-fill"></i> LOOP CAPTURE
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <button class="btn btn-stop-huge w-100 py-4" onclick="triggerAction('stop', 'Deteniendo...', '¡Sistema DETENIDO!')">
+                <i class="bi bi-stop-circle-fill me-3"></i> DETENER TODO (STOP)
             </button>
         </div>
-
     </div>
 
-    <!-- BOTÓN STOP GRANDE -->
-    <div class="stop-section">
-        <h2>4. Detener Escaneo</h2>
-        <button class="btn-main btn-danger" onclick="stopCapture()">
-            STOP
-        </button>
-    </div>
-
-    <!-- MENSAJE RECIBIDO -->
-    <div class="message-section">
-        <div class="message-header">
-            <h2>📡 Mensaje Recibido</h2>
-            <span class="photo-count" id="photoCount">0 fotos</span>
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="bi bi-terminal me-2"></i>Mensajes del Sistema (Raspberry Pi Pico)</span>
+            <small class="text-light opacity-75">Actualización en tiempo real</small>
         </div>
-        <div class="message-display empty" id="messageDisplay">
-            Esperando mensajes de la Pico...
+        <div class="card-body bg-dark p-0">
+            <div id="console-output" class="terminal-window">
+                <div class="text-muted fst-italic">Conectando con el sistema serial...</div>
+            </div>
         </div>
     </div>
 
 </div>
 
-<script>
-    let photoCount = 0;
-    let currentSpeed = 'MID';
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header">
+      <strong class="me-auto" id="toast-title">Notificación</strong>
+      <small>Ahora</small>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body" id="toast-body">
+      Acción realizada.
+    </div>
+  </div>
+</div>
 
-    // ========== POLLING SOLO DE FOTOS ==========
-    let lastMessage = '';
-    
-    async function fetchLastPhoto() {
-        try {
-            const response = await fetch('/serial_log');
-            const html = await response.text();
-            
-            // Buscar la última línea que contenga "FOTO GUARDADA"
-            const lines = html.split('\n').reverse(); // Invertir para buscar desde el final
-            
-            for (let line of lines) {
-                if (line.includes('FOTO') && line.includes('GUARDADA')) {
-                    // Extraer nombre del archivo
-                    const match = line.match(/foto_([\d.]+)\.jpg/);
-                    if (match && line !== lastMessage) {
-                        lastMessage = line;
-                        const angle = parseFloat(match[1]).toFixed(2);
-                        const filename = `foto_${angle}.jpg`;
-                        updateMessage(filename);
-                        photoCount++;
-                        updatePhotoCount();
-                        break;
+<script>
+    // Variables globales
+    let currentSpeed = 'MID';
+    let photoCount = 0;
+    let lastLogMessage = '';
+    const consoleOutput = document.getElementById('console-output');
+    const statusText = document.getElementById('system-status-text');
+    const statusIcon = document.getElementById('status-icon');
+    const statusSpinner = document.getElementById('status-indicator');
+
+    // Función genérica para enviar comandos
+    function triggerAction(action, loadingMsg, successMsg) {
+        // Actualizar UI visualmente inmediato
+        updateStatus(loadingMsg, 'loading');
+        
+        fetch(`/action/${action}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Éxito', successMsg);
+                    updateStatus(successMsg, 'success');
+                } else {
+                    showToast('Error', 'No se pudo completar la acción', true);
+                    updateStatus('Error en comando', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error de conexión', 'No se pudo contactar al servidor', true);
+                updateStatus('Desconectado', 'error');
+            });
+    }
+
+    // Lógica específica para velocidad
+    function setSpeed(speed) {
+        // Actualizar botones visualmente
+        document.querySelectorAll('.btn-speed').forEach(btn => btn.classList.remove('active'));
+        const btnId = 'btn-' + speed.toLowerCase();
+        document.getElementById(btnId).classList.add('active');
+
+        // Mensaje personalizado según velocidad
+        let msg = '';
+        if(speed === 'SLOW') msg = 'Configurada velocidad LENTA (1 paso)';
+        if(speed === 'MID') msg = 'Configurada velocidad MEDIA (50 pasos)';
+        if(speed === 'FAST') msg = 'Configurada velocidad RÁPIDA (100 pasos)';
+
+        triggerAction('capture_' + speed.toLowerCase(), 'Cambiando velocidad...', msg);
+    }
+
+    // UI Helpers
+    function updateStatus(text, type) {
+        statusText.textContent = text;
+        statusSpinner.style.display = type === 'loading' ? 'inline-block' : 'none';
+        
+        statusIcon.className = ''; // Reset
+        if (type === 'loading') statusIcon.style.display = 'none';
+        else {
+            statusIcon.style.display = 'inline-block';
+            if (type === 'success') statusIcon.className = 'bi bi-check-circle-fill text-success';
+            if (type === 'error') statusIcon.className = 'bi bi-exclamation-triangle-fill text-danger';
+        }
+    }
+
+    function showToast(title, message, isError = false) {
+        const toastEl = document.getElementById('liveToast');
+        const toastTitle = document.getElementById('toast-title');
+        const toastBody = document.getElementById('toast-body');
+        
+        toastTitle.textContent = title;
+        toastBody.textContent = message;
+        
+        if (isError) {
+            toastEl.classList.add('bg-danger', 'text-white');
+            document.querySelector('.toast-header').classList.add('bg-danger', 'text-white');
+        } else {
+            toastEl.classList.remove('bg-danger', 'text-white');
+            document.querySelector('.toast-header').classList.remove('bg-danger', 'text-white');
+        }
+
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+
+    // POLLING DE LOGS (Lo que lee lo que dice la Pico)
+    setInterval(() => {
+        fetch('/api/get_logs')
+            .then(res => res.json())
+            .then(data => {
+                if (data.logs && data.logs.length > 0) {
+                    // Filtrar logs que vienen del Serial (los que empiezan con [SERIAL])
+                    // O mostrar todo si prefieres
+                    const lines = data.logs.join('\n');
+                    
+                    // Solo actualizar si hay cambios
+                    if (consoleOutput.innerText !== lines) {
+                        // Limpiar y reconstruir para colorear
+                        let htmlContent = '';
+                        data.logs.forEach(line => {
+                            let colorClass = 'text-white';
+                            if(line.includes('AUTO_HOME')) colorClass = 'text-primary';
+                            if(line.includes('FOTO')) colorClass = 'text-success';
+                            if(line.includes('ERROR')) colorClass = 'text-danger';
+                            if(line.includes('STOP')) colorClass = 'text-danger fw-bold';
+                            
+                            htmlContent += `<div class="${colorClass}">${line}</div>`;
+
+                            // Detección inteligente de eventos para actualizar estado
+                            if (line.includes('HOMING COMPLETADO') && line !== lastLogMessage) {
+                                showToast('Hardware', 'Auto Home Terminado correctamente');
+                                updateStatus('Home Establecido', 'success');
+                                lastLogMessage = line;
+                            }
+                            if (line.includes('LOOP_CAPTURE_FINISHED') && line !== lastLogMessage) {
+                                showToast('Hardware', 'Escaneo finalizado');
+                                updateStatus('Escaneo Completo', 'success');
+                                lastLogMessage = line;
+                            }
+                            // Contador de fotos
+                            if (line.includes('FOTO GUARDADA')) {
+                                const match = line.match(/foto_([\d.]+)\.jpg/);
+                                if (match) {
+                                    // Incrementar contador visual simple (opcional: parsear número real)
+                                    // Aquí solo contamos las líneas de log que confirman guardado
+                                }
+                            }
+                        });
+                        consoleOutput.innerHTML = htmlContent;
+                        consoleOutput.scrollTop = consoleOutput.scrollHeight; // Auto-scroll
+                        
+                        // Actualizar contador de fotos contando ocurrencias en el log actual
+                        const count = (lines.match(/FOTO GUARDADA/g) || []).length;
+                        document.getElementById('photo-counter').textContent = count + " Fotos";
                     }
                 }
-            }
-        } catch (error) {
-            console.error('Error fetching photos:', error);
-        }
-    }
+            })
+            .catch(err => console.log('Polling error:', err));
+    }, 1000);
 
-    function updateMessage(filename) {
-        const display = document.getElementById('messageDisplay');
-        display.textContent = `📸 ${filename}`;
-        display.classList.remove('empty');
-    }
-
-    function updatePhotoCount() {
-        document.getElementById('photoCount').textContent = `${photoCount} foto${photoCount !== 1 ? 's' : ''}`;
-    }
-
-    // Polling cada 800ms
-    setInterval(fetchLastPhoto, 800);
-
-    // ========== CONTROL DE ACCIONES ==========
-    async function autoHome() {
-        try {
-            const response = await fetch('/action/auto_home', { method: 'POST' });
-            const data = await response.json();
-            console.log('AUTO HOME:', data);
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
-
-    async function setSpeed(speed) {
-        currentSpeed = speed;
-        
-        // Actualizar UI
-        document.querySelectorAll('.btn-speed').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('btn' + speed.charAt(0) + speed.slice(1).toLowerCase()).classList.add('active');
-
-        try {
-            const response = await fetch(`/action/capture_${speed.toLowerCase()}`, { method: 'POST' });
-            const data = await response.json();
-            console.log('Velocidad configurada:', data);
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
-
-    async function startLoopCapture() {
-        try {
-            const response = await fetch('/action/start_loop_capture', { method: 'POST' });
-            const data = await response.json();
-            console.log('Loop iniciado:', data);
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
-
-    async function stopCapture() {
-        try {
-            const response = await fetch('/action/stop', { method: 'POST' });
-            const data = await response.json();
-            console.log('Escaneo detenido:', data);
-        } catch (error) {
-            console.error('Error:', error);
-        }
-    }
 </script>
 {% endblock %}
