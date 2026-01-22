@@ -8,750 +8,388 @@
         box-sizing: border-box;
     }
 
-    .control-wrapper {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 20px;
+    body {
+        background: #f5f7fa;
     }
 
-    /* Header con título */
     .page-header {
-        text-align: center;
-        margin-bottom: 40px;
-        padding-bottom: 20px;
-        border-bottom: 3px solid #667eea;
+        background: white;
+        padding: 25px 30px;
+        margin: -20px -20px 30px -20px;
+        border-bottom: 3px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     .page-header h1 {
-        font-size: 32px;
+        font-size: 28px;
         color: #2d3748;
-        margin-bottom: 8px;
+        margin: 0;
         font-weight: 700;
-    }
-
-    .page-header p {
-        color: #718096;
-        font-size: 16px;
-    }
-
-    /* Status Card Superior */
-    .status-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 25px;
-        border-radius: 15px;
-        margin-bottom: 30px;
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 15px;
+        gap: 12px;
     }
 
-    .status-indicator {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-        box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    .control-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 30px;
     }
 
-    .status-idle { background: #cbd5e0; }
-    .status-running { background: #48bb78; box-shadow: 0 0 15px #48bb78; }
-    .status-error { background: #f56565; box-shadow: 0 0 15px #f56565; }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.7; transform: scale(1.15); }
-    }
-
-    .status-text {
-        font-size: 20px;
-        font-weight: 600;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    /* Grid de pasos */
+    /* Layout principal en 3 columnas */
     .steps-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 25px;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
     }
 
-    .step-card {
+    .step-section {
         background: white;
-        border-radius: 15px;
-        padding: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border: 2px solid #e2e8f0;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .step-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 5px;
-        height: 100%;
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-    }
-
-    .step-card:hover {
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        transform: translateY(-3px);
-    }
-
-    .step-header {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 15px;
-    }
-
-    .step-number {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        width: 45px;
-        height: 45px;
         border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 20px;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        flex-shrink: 0;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 2px solid #e2e8f0;
     }
 
-    .step-info h3 {
+    .step-section h2 {
         font-size: 18px;
-        font-weight: 700;
         color: #2d3748;
-        margin: 0 0 5px 0;
+        margin: 0 0 8px 0;
+        font-weight: 700;
     }
 
-    .step-info p {
-        font-size: 13px;
+    .step-section p {
+        font-size: 14px;
         color: #718096;
-        margin: 0;
-        line-height: 1.4;
+        margin: 0 0 20px 0;
     }
 
-    .step-content {
-        margin-top: 15px;
-    }
-
-    /* Botones principales */
-    .btn {
+    /* Botón principal GRANDE */
+    .btn-main {
         width: 100%;
-        padding: 16px 20px;
+        padding: 35px 20px;
         border: none;
         border-radius: 10px;
-        font-size: 15px;
+        font-size: 20px;
         font-weight: 700;
         cursor: pointer;
         transition: all 0.3s ease;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
+        letter-spacing: 1px;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none !important;
+    .btn-main:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    .btn-main:active {
+        transform: translateY(-1px);
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     }
 
     .btn-success {
-        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-        color: white;
-    }
-
-    .btn-success:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(72, 187, 120, 0.5);
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
     }
 
     .btn-danger {
-        background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
-        color: white;
-    }
-
-    .btn-danger:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(245, 101, 101, 0.5);
+        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
     }
 
     /* Botones de velocidad */
-    .speed-grid {
+    .speed-buttons {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 12px;
     }
 
     .btn-speed {
-        padding: 18px 12px;
-        background: #f7fafc;
-        border: 2px solid #e2e8f0;
-        color: #2d3748;
-        font-weight: 700;
+        padding: 30px 15px;
+        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        border: none;
         border-radius: 10px;
+        color: white;
+        font-size: 18px;
+        font-weight: 700;
         cursor: pointer;
         transition: all 0.3s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
+        text-transform: uppercase;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
-    .btn-speed .icon {
-        font-size: 28px;
-    }
-
-    .btn-speed .label {
-        font-size: 14px;
-        font-weight: 700;
-    }
-
-    .btn-speed .detail {
-        font-size: 11px;
-        color: #718096;
-        font-weight: 500;
+    .btn-speed:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(20, 184, 166, 0.4);
     }
 
     .btn-speed.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-color: #667eea;
-        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.5);
         transform: scale(1.05);
     }
 
-    .btn-speed.active .detail {
-        color: rgba(255,255,255,0.9);
-    }
-
-    .btn-speed:hover:not(:disabled):not(.active) {
-        border-color: #667eea;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-
-    /* LOG DE FOTOS */
-    .photos-log-card {
-        background: white;
-        border-radius: 15px;
-        padding: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border: 2px solid #e2e8f0;
-    }
-
-    .log-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e2e8f0;
-    }
-
-    .log-header-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .log-icon {
-        font-size: 28px;
-    }
-
-    .log-header-left h3 {
-        font-size: 20px;
-        font-weight: 700;
-        color: #2d3748;
-        margin: 0;
-    }
-
-    .photo-counter {
-        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-        color: white;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: 700;
-        box-shadow: 0 3px 8px rgba(72, 187, 120, 0.3);
-    }
-
-    .btn-clear {
-        background: #edf2f7;
-        color: #4a5568;
-        border: 1px solid #cbd5e0;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .btn-clear:hover {
-        background: #e2e8f0;
-        transform: translateY(-1px);
-    }
-
-    .photos-container {
-        background: #f7fafc;
-        border-radius: 10px;
-        padding: 15px;
-        max-height: 350px;
-        overflow-y: auto;
-        border: 1px solid #e2e8f0;
-    }
-
-    .photos-container::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    .photos-container::-webkit-scrollbar-track {
-        background: #edf2f7;
-        border-radius: 5px;
-    }
-
-    .photos-container::-webkit-scrollbar-thumb {
-        background: #cbd5e0;
-        border-radius: 5px;
-    }
-
-    .photos-container::-webkit-scrollbar-thumb:hover {
-        background: #667eea;
-    }
-
-    .photo-item {
-        background: white;
-        padding: 15px 18px;
-        margin-bottom: 10px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        border: 2px solid #e2e8f0;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        animation: slideIn 0.3s ease;
-        transition: all 0.2s ease;
-    }
-
-    .photo-item:hover {
-        border-color: #667eea;
-        transform: translateX(5px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    .photo-icon {
-        font-size: 32px;
-        flex-shrink: 0;
-    }
-
-    .photo-info {
-        flex: 1;
-    }
-
-    .photo-name {
-        font-size: 15px;
-        font-weight: 700;
-        color: #2d3748;
-        margin-bottom: 3px;
-    }
-
-    .photo-angle {
-        font-size: 13px;
-        color: #718096;
+    .btn-speed small {
+        display: block;
+        font-size: 11px;
+        margin-top: 5px;
+        opacity: 0.9;
         font-weight: 500;
     }
 
-    .photo-time {
-        font-size: 12px;
-        color: #a0aec0;
-        white-space: nowrap;
+    /* Botón STOP grande que ocupa todo el ancho */
+    .stop-section {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 2px solid #e2e8f0;
+        margin-bottom: 25px;
     }
 
-    .empty-state {
+    .stop-section h2 {
+        font-size: 18px;
+        color: #2d3748;
+        margin: 0 0 20px 0;
+        font-weight: 700;
         text-align: center;
-        padding: 40px 20px;
-        color: #a0aec0;
     }
 
-    .empty-state-icon {
-        font-size: 64px;
+    /* Mensaje recibido */
+    .message-section {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 2px solid #e2e8f0;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 15px;
-        opacity: 0.5;
     }
 
-    .empty-state-text {
-        font-size: 15px;
+    .message-header h2 {
+        font-size: 18px;
+        color: #2d3748;
+        margin: 0;
+        font-weight: 700;
+    }
+
+    .photo-count {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 700;
+        box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .message-display {
+        background: #1a202c;
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 80px;
+        font-family: 'Courier New', monospace;
+        font-size: 16px;
+        color: #48bb78;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        border: 1px solid #2d3748;
     }
 
-    @media (max-width: 768px) {
+    .message-display.empty {
+        color: #718096;
+        font-style: italic;
+    }
+
+    @media (max-width: 1024px) {
         .steps-grid {
             grid-template-columns: 1fr;
         }
-        
-        .speed-grid {
-            grid-template-columns: 1fr;
-        }
 
-        .page-header h1 {
-            font-size: 24px;
+        .speed-buttons {
+            grid-template-columns: 1fr;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="control-wrapper">
+<div class="page-header">
+    <h1>🎮 Control de Escaneo 3D</h1>
+</div>
+
+<div class="control-container">
     
-    <!-- Header -->
-    <div class="page-header">
-        <h1>🔄 Control de Escaneo 3D</h1>
-        <p>Sistema de captura rotacional automatizado con Raspberry Pi Pico</p>
-    </div>
-
-    <!-- Status Card -->
-    <div class="status-card">
-        <span class="status-indicator status-idle" id="statusIndicator"></span>
-        <span class="status-text" id="statusText">Sistema Inactivo - Presiona AUTO HOME para comenzar</span>
-    </div>
-
-    <!-- Grid de pasos -->
+    <!-- GRID DE 3 PASOS -->
     <div class="steps-grid">
         
         <!-- PASO 1: AUTO HOME -->
-        <div class="step-card">
-            <div class="step-header">
-                <div class="step-number">1</div>
-                <div class="step-info">
-                    <h3>Inicializar Sistema</h3>
-                    <p>Calibración del motor a posición HOME</p>
-                </div>
-            </div>
-            <div class="step-content">
-                <button class="btn btn-primary" id="btnAutoHome" onclick="autoHome()">
-                    🏠 EJECUTAR AUTO HOME
-                </button>
-            </div>
+        <div class="step-section">
+            <h2>1. Inicia con el Auto home</h2>
+            <p>Lleva el motor a la posición inicial (HOME) antes de comenzar el escaneo.</p>
+            <button class="btn-main btn-primary" onclick="autoHome()">
+                AUTOHOME
+            </button>
         </div>
 
         <!-- PASO 2: VELOCIDAD -->
-        <div class="step-card">
-            <div class="step-header">
-                <div class="step-number">2</div>
-                <div class="step-info">
-                    <h3>Seleccionar Velocidad</h3>
-                    <p>Pasos del motor entre cada captura</p>
-                </div>
-            </div>
-            <div class="step-content">
-                <div class="speed-grid">
-                    <button class="btn-speed" id="btnSlow" onclick="setSpeed('SLOW')" disabled>
-                        <span class="icon">🐢</span>
-                        <span class="label">LENTO</span>
-                        <span class="detail">1 paso</span>
-                    </button>
-                    <button class="btn-speed active" id="btnMid" onclick="setSpeed('MID')" disabled>
-                        <span class="icon">🚶</span>
-                        <span class="label">MEDIO</span>
-                        <span class="detail">50 pasos</span>
-                    </button>
-                    <button class="btn-speed" id="btnFast" onclick="setSpeed('FAST')" disabled>
-                        <span class="icon">🏃</span>
-                        <span class="label">RÁPIDO</span>
-                        <span class="detail">100 pasos</span>
-                    </button>
-                </div>
+        <div class="step-section">
+            <h2>2. Selecciona la velocidad de captura</h2>
+            <p>Configura la cantidad de pasos del motor entre cada captura fotográfica.</p>
+            <div class="speed-buttons">
+                <button class="btn-speed" id="btnSlow" onclick="setSpeed('SLOW')">
+                    LENTO
+                    <small>1 paso/foto</small>
+                </button>
+                <button class="btn-speed active" id="btnMid" onclick="setSpeed('MID')">
+                    MEDIO
+                    <small>50 pasos/foto</small>
+                </button>
+                <button class="btn-speed" id="btnFast" onclick="setSpeed('FAST')">
+                    RÁPIDO
+                    <small>100 pasos/foto</small>
+                </button>
             </div>
         </div>
 
         <!-- PASO 3: LOOP CAPTURE -->
-        <div class="step-card">
-            <div class="step-header">
-                <div class="step-number">3</div>
-                <div class="step-info">
-                    <h3>Iniciar Escaneo</h3>
-                    <p>Barrido automático entre endstops</p>
-                </div>
-            </div>
-            <div class="step-content">
-                <button class="btn btn-success" id="btnLoopCapture" onclick="startLoopCapture()" disabled>
-                    📸 INICIAR LOOP CAPTURE
-                </button>
-            </div>
-        </div>
-
-        <!-- PASO 4: STOP -->
-        <div class="step-card">
-            <div class="step-header">
-                <div class="step-number">4</div>
-                <div class="step-info">
-                    <h3>Detener Escaneo</h3>
-                    <p>Finaliza el proceso de captura</p>
-                </div>
-            </div>
-            <div class="step-content">
-                <button class="btn btn-danger" id="btnStop" onclick="stopCapture()" disabled>
-                    ⛔ DETENER ESCANEO
-                </button>
-            </div>
+        <div class="step-section">
+            <h2>3. Inicia con el Loop de Captura</h2>
+            <p>Comienza el barrido automático. El motor se moverá entre los endstops capturando fotos.</p>
+            <button class="btn-main btn-success" onclick="startLoopCapture()">
+                LOOP CAPTURE
+            </button>
         </div>
 
     </div>
 
-    <!-- LOG DE FOTOS -->
-    <div class="photos-log-card">
-        <div class="log-header">
-            <div class="log-header-left">
-                <span class="log-icon">📸</span>
-                <h3>Fotos Capturadas</h3>
-                <span class="photo-counter" id="photoCounter">0 fotos</span>
-            </div>
-            <button class="btn-clear" onclick="clearPhotosLog()">
-                🗑️ Limpiar
-            </button>
+    <!-- BOTÓN STOP GRANDE -->
+    <div class="stop-section">
+        <h2>4. Detener Escaneo</h2>
+        <button class="btn-main btn-danger" onclick="stopCapture()">
+            STOP
+        </button>
+    </div>
+
+    <!-- MENSAJE RECIBIDO -->
+    <div class="message-section">
+        <div class="message-header">
+            <h2>📡 Mensaje Recibido</h2>
+            <span class="photo-count" id="photoCount">0 fotos</span>
         </div>
-        <div class="photos-container" id="photosContainer">
-            <div class="empty-state">
-                <div class="empty-state-icon">📷</div>
-                <div class="empty-state-text">No hay fotos capturadas aún</div>
-            </div>
+        <div class="message-display empty" id="messageDisplay">
+            Esperando mensajes de la Pico...
         </div>
     </div>
 
 </div>
 
 <script>
-    let currentSpeed = 'MID';
-    let isScanning = false;
-    let homeCompleted = false;
     let photoCount = 0;
-    let capturedPhotos = [];
-
-    function updateStatus(message, type = 'idle') {
-        const indicator = document.getElementById('statusIndicator');
-        const text = document.getElementById('statusText');
-        
-        text.textContent = message;
-        indicator.className = 'status-indicator status-' + type;
-    }
-
-    function updateButtonStates() {
-        document.getElementById('btnAutoHome').disabled = isScanning;
-        document.getElementById('btnSlow').disabled = !homeCompleted || isScanning;
-        document.getElementById('btnMid').disabled = !homeCompleted || isScanning;
-        document.getElementById('btnFast').disabled = !homeCompleted || isScanning;
-        document.getElementById('btnLoopCapture').disabled = !homeCompleted || isScanning;
-        document.getElementById('btnStop').disabled = !isScanning;
-    }
-
-    function addPhotoToLog(filename, angle) {
-        const container = document.getElementById('photosContainer');
-        
-        // Remover empty state si existe
-        const emptyState = container.querySelector('.empty-state');
-        if (emptyState) {
-            emptyState.remove();
-        }
-
-        // Crear elemento de foto
-        const photoItem = document.createElement('div');
-        photoItem.className = 'photo-item';
-        
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('es-CL', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-        });
-
-        photoItem.innerHTML = `
-            <span class="photo-icon">📷</span>
-            <div class="photo-info">
-                <div class="photo-name">${filename}</div>
-                <div class="photo-angle">Ángulo: ${angle}°</div>
-            </div>
-            <div class="photo-time">${timeStr}</div>
-        `;
-
-        container.insertBefore(photoItem, container.firstChild);
-        
-        photoCount++;
-        capturedPhotos.push({ filename, angle, time: timeStr });
-        updatePhotoCounter();
-    }
-
-    function updatePhotoCounter() {
-        document.getElementById('photoCounter').textContent = `${photoCount} foto${photoCount !== 1 ? 's' : ''}`;
-    }
-
-    function clearPhotosLog() {
-        const container = document.getElementById('photosContainer');
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">📷</div>
-                <div class="empty-state-text">No hay fotos capturadas aún</div>
-            </div>
-        `;
-        photoCount = 0;
-        capturedPhotos = [];
-        updatePhotoCounter();
-    }
+    let currentSpeed = 'MID';
 
     // ========== POLLING SOLO DE FOTOS ==========
-    let lastPhotoCheck = '';
+    let lastMessage = '';
     
-    async function fetchPhotosOnly() {
+    async function fetchLastPhoto() {
         try {
             const response = await fetch('/serial_log');
             const html = await response.text();
             
-            // Buscar solo líneas que contengan "FOTO"
-            const lines = html.split('\n');
-            lines.forEach(line => {
+            // Buscar la última línea que contenga "FOTO GUARDADA"
+            const lines = html.split('\n').reverse(); // Invertir para buscar desde el final
+            
+            for (let line of lines) {
                 if (line.includes('FOTO') && line.includes('GUARDADA')) {
-                    // Evitar duplicados
-                    if (line === lastPhotoCheck) return;
-                    lastPhotoCheck = line;
-                    
-                    // Extraer nombre de archivo y ángulo
-                    // Formato esperado: "📸 FOTO GUARDADA: foto_45.23.jpg"
+                    // Extraer nombre del archivo
                     const match = line.match(/foto_([\d.]+)\.jpg/);
-                    if (match) {
+                    if (match && line !== lastMessage) {
+                        lastMessage = line;
                         const angle = parseFloat(match[1]).toFixed(2);
                         const filename = `foto_${angle}.jpg`;
-                        addPhotoToLog(filename, angle);
+                        updateMessage(filename);
+                        photoCount++;
+                        updatePhotoCount();
+                        break;
                     }
                 }
-            });
+            }
         } catch (error) {
             console.error('Error fetching photos:', error);
         }
     }
 
+    function updateMessage(filename) {
+        const display = document.getElementById('messageDisplay');
+        display.textContent = `📸 ${filename}`;
+        display.classList.remove('empty');
+    }
+
+    function updatePhotoCount() {
+        document.getElementById('photoCount').textContent = `${photoCount} foto${photoCount !== 1 ? 's' : ''}`;
+    }
+
     // Polling cada 800ms
-    setInterval(fetchPhotosOnly, 800);
+    setInterval(fetchLastPhoto, 800);
 
     // ========== CONTROL DE ACCIONES ==========
     async function autoHome() {
-        updateStatus('🏠 Ejecutando AUTO HOME...', 'running');
-        document.getElementById('btnAutoHome').disabled = true;
-
         try {
             const response = await fetch('/action/auto_home', { method: 'POST' });
             const data = await response.json();
-
-            if (data.success !== false) {
-                homeCompleted = true;
-                updateStatus('✅ HOME completado - Selecciona velocidad', 'running');
-                updateButtonStates();
-            } else {
-                updateStatus('❌ Error en AUTO HOME', 'error');
-            }
+            console.log('AUTO HOME:', data);
         } catch (error) {
-            updateStatus('❌ Error de comunicación', 'error');
-            console.error(error);
-        } finally {
-            document.getElementById('btnAutoHome').disabled = false;
-            updateButtonStates();
+            console.error('Error:', error);
         }
     }
 
     async function setSpeed(speed) {
         currentSpeed = speed;
-        updateStatus(`⚙️ Configurando velocidad: ${speed}`, 'running');
-
+        
+        // Actualizar UI
         document.querySelectorAll('.btn-speed').forEach(btn => btn.classList.remove('active'));
         document.getElementById('btn' + speed.charAt(0) + speed.slice(1).toLowerCase()).classList.add('active');
 
         try {
             const response = await fetch(`/action/capture_${speed.toLowerCase()}`, { method: 'POST' });
             const data = await response.json();
-
-            updateStatus(`✅ Velocidad ${speed} - Listo para escanear`, 'running');
-            updateButtonStates();
+            console.log('Velocidad configurada:', data);
         } catch (error) {
-            updateStatus('❌ Error configurando velocidad', 'error');
-            console.error(error);
+            console.error('Error:', error);
         }
     }
 
     async function startLoopCapture() {
-        if (!homeCompleted) {
-            alert('⚠️ Primero ejecuta AUTO HOME');
-            return;
-        }
-
-        isScanning = true;
-        updateStatus('📸 ESCANEANDO... (loop continuo)', 'running');
-        updateButtonStates();
-
         try {
             const response = await fetch('/action/start_loop_capture', { method: 'POST' });
             const data = await response.json();
+            console.log('Loop iniciado:', data);
         } catch (error) {
-            updateStatus('❌ Error iniciando escaneo', 'error');
-            isScanning = false;
-            updateButtonStates();
-            console.error(error);
+            console.error('Error:', error);
         }
     }
 
     async function stopCapture() {
-        updateStatus('⏹️ Deteniendo escaneo...', 'running');
-
         try {
             const response = await fetch('/action/stop', { method: 'POST' });
             const data = await response.json();
-
-            isScanning = false;
-            updateStatus(`✅ Escaneo finalizado - ${photoCount} fotos capturadas`, 'idle');
-            updateButtonStates();
+            console.log('Escaneo detenido:', data);
         } catch (error) {
-            updateStatus('❌ Error deteniendo escaneo', 'error');
-            console.error(error);
+            console.error('Error:', error);
         }
     }
-
-    // Inicializar
-    updateButtonStates();
 </script>
 {% endblock %}
