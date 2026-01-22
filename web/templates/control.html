@@ -4,72 +4,164 @@
 
 {% block extra_head %}
 <style>
-    .control-container {
-        max-width: 900px;
+    * {
+        box-sizing: border-box;
+    }
+
+    .control-wrapper {
+        max-width: 1000px;
         margin: 0 auto;
+        padding: 20px;
     }
 
-    .step-section {
-        margin-bottom: 25px;
+    /* Header con título */
+    .page-header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid #667eea;
+    }
+
+    .page-header h1 {
+        font-size: 32px;
+        color: #2d3748;
+        margin-bottom: 8px;
+        font-weight: 700;
+    }
+
+    .page-header p {
+        color: #718096;
+        font-size: 16px;
+    }
+
+    /* Status Card Superior */
+    .status-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
         padding: 25px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border-left: 5px solid #667eea;
-        transition: all 0.3s ease;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
     }
 
-    .step-section:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        transform: translateY(-2px);
+    .status-indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+        box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    .status-idle { background: #cbd5e0; }
+    .status-running { background: #48bb78; box-shadow: 0 0 15px #48bb78; }
+    .status-error { background: #f56565; box-shadow: 0 0 15px #f56565; }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.15); }
+    }
+
+    .status-text {
+        font-size: 20px;
+        font-weight: 600;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Grid de pasos */
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .step-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .step-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .step-card:hover {
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        transform: translateY(-3px);
     }
 
     .step-header {
         display: flex;
         align-items: center;
+        gap: 15px;
         margin-bottom: 15px;
     }
 
     .step-number {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: bold;
-        font-size: 18px;
-        margin-right: 15px;
-        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
-    }
-
-    .step-title {
+        font-weight: 700;
         font-size: 20px;
-        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        flex-shrink: 0;
+    }
+
+    .step-info h3 {
+        font-size: 18px;
+        font-weight: 700;
         color: #2d3748;
+        margin: 0 0 5px 0;
     }
 
-    .step-description {
+    .step-info p {
+        font-size: 13px;
         color: #718096;
-        margin-bottom: 15px;
-        font-size: 14px;
-        line-height: 1.5;
+        margin: 0;
+        line-height: 1.4;
     }
 
+    .step-content {
+        margin-top: 15px;
+    }
+
+    /* Botones principales */
     .btn {
         width: 100%;
-        padding: 15px 20px;
+        padding: 16px 20px;
         border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: 600;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
         cursor: pointer;
         transition: all 0.3s ease;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
     }
 
     .btn:disabled {
@@ -85,7 +177,7 @@
 
     .btn-primary:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
     }
 
     .btn-success {
@@ -95,288 +187,373 @@
 
     .btn-success:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        box-shadow: 0 6px 20px rgba(72, 187, 120, 0.5);
     }
 
     .btn-danger {
-        background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
         color: white;
     }
 
     .btn-danger:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(245, 101, 101, 0.4);
+        box-shadow: 0 6px 20px rgba(245, 101, 101, 0.5);
     }
 
-    .speed-buttons {
+    /* Botones de velocidad */
+    .speed-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 12px;
     }
 
     .btn-speed {
-        padding: 15px 10px;
-        background: white;
+        padding: 18px 12px;
+        background: #f7fafc;
         border: 2px solid #e2e8f0;
         color: #2d3748;
-        font-weight: 600;
-        border-radius: 8px;
+        font-weight: 700;
+        border-radius: 10px;
         cursor: pointer;
         transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-speed .icon {
+        font-size: 28px;
+    }
+
+    .btn-speed .label {
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .btn-speed .detail {
+        font-size: 11px;
+        color: #718096;
+        font-weight: 500;
     }
 
     .btn-speed.active {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border-color: #667eea;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+        transform: scale(1.05);
     }
 
-    .btn-speed:hover:not(:disabled) {
+    .btn-speed.active .detail {
+        color: rgba(255,255,255,0.9);
+    }
+
+    .btn-speed:hover:not(:disabled):not(.active) {
         border-color: #667eea;
         transform: translateY(-2px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
-    .btn-speed small {
-        display: block;
-        font-size: 12px;
-        opacity: 0.8;
-        margin-top: 5px;
-    }
-
-    .status-card {
+    /* LOG DE FOTOS */
+    .photos-log-card {
         background: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 25px;
-        text-align: center;
-    }
-
-    .status-indicator {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 10px;
-        animation: pulse 2s infinite;
-    }
-
-    .status-idle { background: #cbd5e0; }
-    .status-running { background: #48bb78; }
-    .status-error { background: #f56565; }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.6; transform: scale(1.1); }
-    }
-
-    .status-text {
-        font-size: 16px;
-        font-weight: 600;
-        color: #2d3748;
-    }
-
-    /* LOG DE LA PICO */
-    .log-container {
-        background: #1a202c;
-        border-radius: 12px;
-        padding: 20px;
-        margin-top: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border: 2px solid #e2e8f0;
     }
 
     .log-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #2d3748;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e2e8f0;
     }
 
-    .log-title {
-        color: #48bb78;
-        font-weight: 700;
-        font-size: 16px;
+    .log-header-left {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
     }
 
-    .log-badge {
-        background: #48bb78;
+    .log-icon {
+        font-size: 28px;
+    }
+
+    .log-header-left h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+        margin: 0;
+    }
+
+    .photo-counter {
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
         color: white;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 700;
+        box-shadow: 0 3px 8px rgba(72, 187, 120, 0.3);
     }
 
-    .log-content {
-        background: #000000;
+    .btn-clear {
+        background: #edf2f7;
+        color: #4a5568;
+        border: 1px solid #cbd5e0;
+        padding: 8px 16px;
         border-radius: 8px;
-        padding: 15px;
-        height: 400px;
-        overflow-y: auto;
-        font-family: 'Courier New', monospace;
         font-size: 13px;
-        line-height: 1.6;
-        color: #cbd5e0;
-        border: 1px solid #2d3748;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
-    .log-content::-webkit-scrollbar {
-        width: 8px;
+    .btn-clear:hover {
+        background: #e2e8f0;
+        transform: translateY(-1px);
     }
 
-    .log-content::-webkit-scrollbar-track {
-        background: #1a202c;
-        border-radius: 4px;
+    .photos-container {
+        background: #f7fafc;
+        border-radius: 10px;
+        padding: 15px;
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
     }
 
-    .log-content::-webkit-scrollbar-thumb {
-        background: #4a5568;
-        border-radius: 4px;
+    .photos-container::-webkit-scrollbar {
+        width: 10px;
     }
 
-    .log-content::-webkit-scrollbar-thumb:hover {
+    .photos-container::-webkit-scrollbar-track {
+        background: #edf2f7;
+        border-radius: 5px;
+    }
+
+    .photos-container::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 5px;
+    }
+
+    .photos-container::-webkit-scrollbar-thumb:hover {
         background: #667eea;
     }
 
-    .log-line {
-        margin-bottom: 5px;
-        padding: 3px 5px;
-        border-radius: 3px;
-    }
-
-    .log-line.foto {
-        background: #234e52;
-        color: #81e6d9;
-        font-weight: 600;
-    }
-
-    .log-line.error {
-        background: #742a2a;
-        color: #fc8181;
-    }
-
-    .log-line.success {
-        background: #22543d;
-        color: #9ae6b4;
-    }
-
-    .log-line.info {
-        color: #90cdf4;
-    }
-
-    .btn-clear-log {
-        background: #2d3748;
-        color: #cbd5e0;
-        border: 1px solid #4a5568;
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        cursor: pointer;
+    .photo-item {
+        background: white;
+        padding: 15px 18px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        border: 2px solid #e2e8f0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        animation: slideIn 0.3s ease;
         transition: all 0.2s ease;
     }
 
-    .btn-clear-log:hover {
-        background: #4a5568;
-        color: white;
+    .photo-item:hover {
+        border-color: #667eea;
+        transform: translateX(5px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .photo-icon {
+        font-size: 32px;
+        flex-shrink: 0;
+    }
+
+    .photo-info {
+        flex: 1;
+    }
+
+    .photo-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 3px;
+    }
+
+    .photo-angle {
+        font-size: 13px;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .photo-time {
+        font-size: 12px;
+        color: #a0aec0;
+        white-space: nowrap;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #a0aec0;
+    }
+
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    .empty-state-text {
+        font-size: 15px;
+        font-weight: 600;
     }
 
     @media (max-width: 768px) {
-        .speed-buttons {
+        .steps-grid {
             grid-template-columns: 1fr;
         }
         
-        .log-content {
-            height: 300px;
-            font-size: 12px;
+        .speed-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header h1 {
+            font-size: 24px;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="control-container">
+<div class="control-wrapper">
     
-    <!-- STATUS CARD -->
+    <!-- Header -->
+    <div class="page-header">
+        <h1>🔄 Control de Escaneo 3D</h1>
+        <p>Sistema de captura rotacional automatizado con Raspberry Pi Pico</p>
+    </div>
+
+    <!-- Status Card -->
     <div class="status-card">
         <span class="status-indicator status-idle" id="statusIndicator"></span>
-        <span class="status-text" id="statusText">Sistema Inactivo</span>
+        <span class="status-text" id="statusText">Sistema Inactivo - Presiona AUTO HOME para comenzar</span>
     </div>
 
-    <!-- PASO 1: AUTO HOME -->
-    <div class="step-section">
-        <div class="step-header">
-            <div class="step-number">1</div>
-            <div class="step-title">🏠 Inicializar Sistema</div>
-        </div>
-        <p class="step-description">Lleva el motor a la posición inicial (HOME) antes de comenzar el escaneo.</p>
-        <button class="btn btn-primary" id="btnAutoHome" onclick="autoHome()">
-            EJECUTAR AUTO HOME
-        </button>
-    </div>
-
-    <!-- PASO 2: VELOCIDAD -->
-    <div class="step-section">
-        <div class="step-header">
-            <div class="step-number">2</div>
-            <div class="step-title">⚙️ Seleccionar Velocidad</div>
-        </div>
-        <p class="step-description">Configura la cantidad de pasos del motor entre cada captura fotográfica.</p>
-        <div class="speed-buttons">
-            <button class="btn-speed" id="btnSlow" onclick="setSpeed('SLOW')" disabled>
-                🐢 LENTO<br><small>1 paso/foto</small>
-            </button>
-            <button class="btn-speed active" id="btnMid" onclick="setSpeed('MID')" disabled>
-                🚶 MEDIO<br><small>50 pasos/foto</small>
-            </button>
-            <button class="btn-speed" id="btnFast" onclick="setSpeed('FAST')" disabled>
-                🏃 RÁPIDO<br><small>100 pasos/foto</small>
-            </button>
-        </div>
-    </div>
-
-    <!-- PASO 3: LOOP CAPTURE -->
-    <div class="step-section">
-        <div class="step-header">
-            <div class="step-number">3</div>
-            <div class="step-title">📸 Iniciar Escaneo</div>
-        </div>
-        <p class="step-description">Comienza el barrido automático. El motor se moverá entre los endstops capturando fotos continuamente.</p>
-        <button class="btn btn-success" id="btnLoopCapture" onclick="startLoopCapture()" disabled>
-            INICIAR LOOP CAPTURE
-        </button>
-    </div>
-
-    <!-- PASO 4: STOP -->
-    <div class="step-section">
-        <div class="step-header">
-            <div class="step-number">4</div>
-            <div class="step-title">⛔ Detener Escaneo</div>
-        </div>
-        <p class="step-description">Finaliza el proceso de captura y detiene el movimiento del motor.</p>
-        <button class="btn btn-danger" id="btnStop" onclick="stopCapture()" disabled>
-            DETENER ESCANEO
-        </button>
-    </div>
-
-    <!-- LOG EN TIEMPO REAL -->
-    <div class="log-container">
-        <div class="log-header">
-            <div class="log-title">
-                <span>📡</span>
-                <span>Comunicación con Raspberry Pi Pico</span>
-                <span class="log-badge" id="logCount">0 mensajes</span>
+    <!-- Grid de pasos -->
+    <div class="steps-grid">
+        
+        <!-- PASO 1: AUTO HOME -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-info">
+                    <h3>Inicializar Sistema</h3>
+                    <p>Calibración del motor a posición HOME</p>
+                </div>
             </div>
-            <button class="btn-clear-log" onclick="clearLog()">🗑️ Limpiar</button>
+            <div class="step-content">
+                <button class="btn btn-primary" id="btnAutoHome" onclick="autoHome()">
+                    🏠 EJECUTAR AUTO HOME
+                </button>
+            </div>
         </div>
-        <div class="log-content" id="logContent">
-            <div class="log-line info">Esperando mensajes de la Pico...</div>
+
+        <!-- PASO 2: VELOCIDAD -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-info">
+                    <h3>Seleccionar Velocidad</h3>
+                    <p>Pasos del motor entre cada captura</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="speed-grid">
+                    <button class="btn-speed" id="btnSlow" onclick="setSpeed('SLOW')" disabled>
+                        <span class="icon">🐢</span>
+                        <span class="label">LENTO</span>
+                        <span class="detail">1 paso</span>
+                    </button>
+                    <button class="btn-speed active" id="btnMid" onclick="setSpeed('MID')" disabled>
+                        <span class="icon">🚶</span>
+                        <span class="label">MEDIO</span>
+                        <span class="detail">50 pasos</span>
+                    </button>
+                    <button class="btn-speed" id="btnFast" onclick="setSpeed('FAST')" disabled>
+                        <span class="icon">🏃</span>
+                        <span class="label">RÁPIDO</span>
+                        <span class="detail">100 pasos</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PASO 3: LOOP CAPTURE -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-info">
+                    <h3>Iniciar Escaneo</h3>
+                    <p>Barrido automático entre endstops</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <button class="btn btn-success" id="btnLoopCapture" onclick="startLoopCapture()" disabled>
+                    📸 INICIAR LOOP CAPTURE
+                </button>
+            </div>
+        </div>
+
+        <!-- PASO 4: STOP -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-info">
+                    <h3>Detener Escaneo</h3>
+                    <p>Finaliza el proceso de captura</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <button class="btn btn-danger" id="btnStop" onclick="stopCapture()" disabled>
+                    ⛔ DETENER ESCANEO
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LOG DE FOTOS -->
+    <div class="photos-log-card">
+        <div class="log-header">
+            <div class="log-header-left">
+                <span class="log-icon">📸</span>
+                <h3>Fotos Capturadas</h3>
+                <span class="photo-counter" id="photoCounter">0 fotos</span>
+            </div>
+            <button class="btn-clear" onclick="clearPhotosLog()">
+                🗑️ Limpiar
+            </button>
+        </div>
+        <div class="photos-container" id="photosContainer">
+            <div class="empty-state">
+                <div class="empty-state-icon">📷</div>
+                <div class="empty-state-text">No hay fotos capturadas aún</div>
+            </div>
         </div>
     </div>
 
@@ -386,7 +563,8 @@
     let currentSpeed = 'MID';
     let isScanning = false;
     let homeCompleted = false;
-    let logMessages = [];
+    let photoCount = 0;
+    let capturedPhotos = [];
 
     function updateStatus(message, type = 'idle') {
         const indicator = document.getElementById('statusIndicator');
@@ -405,66 +583,96 @@
         document.getElementById('btnStop').disabled = !isScanning;
     }
 
-    function addLogMessage(message, type = 'info') {
-        const logContent = document.getElementById('logContent');
-        const logLine = document.createElement('div');
-        logLine.className = 'log-line ' + type;
+    function addPhotoToLog(filename, angle) {
+        const container = document.getElementById('photosContainer');
         
-        const timestamp = new Date().toLocaleTimeString('es-CL', { 
+        // Remover empty state si existe
+        const emptyState = container.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+
+        // Crear elemento de foto
+        const photoItem = document.createElement('div');
+        photoItem.className = 'photo-item';
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('es-CL', { 
             hour: '2-digit', 
             minute: '2-digit', 
             second: '2-digit' 
         });
+
+        photoItem.innerHTML = `
+            <span class="photo-icon">📷</span>
+            <div class="photo-info">
+                <div class="photo-name">${filename}</div>
+                <div class="photo-angle">Ángulo: ${angle}°</div>
+            </div>
+            <div class="photo-time">${timeStr}</div>
+        `;
+
+        container.insertBefore(photoItem, container.firstChild);
         
-        logLine.textContent = `[${timestamp}] ${message}`;
-        logContent.appendChild(logLine);
-        
-        // Auto-scroll al final
-        logContent.scrollTop = logContent.scrollHeight;
-        
-        logMessages.push(message);
-        document.getElementById('logCount').textContent = `${logMessages.length} mensajes`;
+        photoCount++;
+        capturedPhotos.push({ filename, angle, time: timeStr });
+        updatePhotoCounter();
     }
 
-    function clearLog() {
-        document.getElementById('logContent').innerHTML = '<div class="log-line info">Log limpiado</div>';
-        logMessages = [];
-        document.getElementById('logCount').textContent = '0 mensajes';
+    function updatePhotoCounter() {
+        document.getElementById('photoCounter').textContent = `${photoCount} foto${photoCount !== 1 ? 's' : ''}`;
     }
 
-    // ========== POLLING DE LOGS DESDE LA PICO ==========
-    async function fetchSerialLog() {
+    function clearPhotosLog() {
+        const container = document.getElementById('photosContainer');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📷</div>
+                <div class="empty-state-text">No hay fotos capturadas aún</div>
+            </div>
+        `;
+        photoCount = 0;
+        capturedPhotos = [];
+        updatePhotoCounter();
+    }
+
+    // ========== POLLING SOLO DE FOTOS ==========
+    let lastPhotoCheck = '';
+    
+    async function fetchPhotosOnly() {
         try {
             const response = await fetch('/serial_log');
             const html = await response.text();
             
-            // Parsear los mensajes nuevos
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const messages = tempDiv.textContent.trim().split('\n');
-            
-            messages.forEach(msg => {
-                if (!msg || logMessages.includes(msg)) return; // Evitar duplicados
-                
-                let type = 'info';
-                if (msg.includes('FOTO')) type = 'foto';
-                else if (msg.includes('ERROR') || msg.includes('⚠️')) type = 'error';
-                else if (msg.includes('✅') || msg.includes('COMPLETADO')) type = 'success';
-                
-                addLogMessage(msg, type);
+            // Buscar solo líneas que contengan "FOTO"
+            const lines = html.split('\n');
+            lines.forEach(line => {
+                if (line.includes('FOTO') && line.includes('GUARDADA')) {
+                    // Evitar duplicados
+                    if (line === lastPhotoCheck) return;
+                    lastPhotoCheck = line;
+                    
+                    // Extraer nombre de archivo y ángulo
+                    // Formato esperado: "📸 FOTO GUARDADA: foto_45.23.jpg"
+                    const match = line.match(/foto_([\d.]+)\.jpg/);
+                    if (match) {
+                        const angle = parseFloat(match[1]).toFixed(2);
+                        const filename = `foto_${angle}.jpg`;
+                        addPhotoToLog(filename, angle);
+                    }
+                }
             });
         } catch (error) {
-            console.error('Error fetching serial log:', error);
+            console.error('Error fetching photos:', error);
         }
     }
 
-    // Polling cada 500ms
-    setInterval(fetchSerialLog, 500);
+    // Polling cada 800ms
+    setInterval(fetchPhotosOnly, 800);
 
     // ========== CONTROL DE ACCIONES ==========
     async function autoHome() {
         updateStatus('🏠 Ejecutando AUTO HOME...', 'running');
-        addLogMessage('→ Enviando comando AUTO_HOME', 'info');
         document.getElementById('btnAutoHome').disabled = true;
 
         try {
@@ -473,16 +681,13 @@
 
             if (data.success !== false) {
                 homeCompleted = true;
-                updateStatus('✅ HOME completado. Selecciona velocidad', 'running');
-                addLogMessage('✅ AUTO HOME completado exitosamente', 'success');
+                updateStatus('✅ HOME completado - Selecciona velocidad', 'running');
                 updateButtonStates();
             } else {
                 updateStatus('❌ Error en AUTO HOME', 'error');
-                addLogMessage('❌ Error ejecutando AUTO HOME', 'error');
             }
         } catch (error) {
             updateStatus('❌ Error de comunicación', 'error');
-            addLogMessage('❌ Error de comunicación con el servidor', 'error');
             console.error(error);
         } finally {
             document.getElementById('btnAutoHome').disabled = false;
@@ -493,7 +698,6 @@
     async function setSpeed(speed) {
         currentSpeed = speed;
         updateStatus(`⚙️ Configurando velocidad: ${speed}`, 'running');
-        addLogMessage(`→ Cambiando velocidad a ${speed}`, 'info');
 
         document.querySelectorAll('.btn-speed').forEach(btn => btn.classList.remove('active'));
         document.getElementById('btn' + speed.charAt(0) + speed.slice(1).toLowerCase()).classList.add('active');
@@ -502,12 +706,10 @@
             const response = await fetch(`/action/capture_${speed.toLowerCase()}`, { method: 'POST' });
             const data = await response.json();
 
-            updateStatus(`✅ Velocidad ${speed}. Listo para escanear`, 'running');
-            addLogMessage(`✅ Velocidad configurada: ${speed}`, 'success');
+            updateStatus(`✅ Velocidad ${speed} - Listo para escanear`, 'running');
             updateButtonStates();
         } catch (error) {
             updateStatus('❌ Error configurando velocidad', 'error');
-            addLogMessage('❌ Error al configurar velocidad', 'error');
             console.error(error);
         }
     }
@@ -520,17 +722,13 @@
 
         isScanning = true;
         updateStatus('📸 ESCANEANDO... (loop continuo)', 'running');
-        addLogMessage('🚀 Iniciando LOOP CAPTURE', 'success');
         updateButtonStates();
 
         try {
             const response = await fetch('/action/start_loop_capture', { method: 'POST' });
             const data = await response.json();
-            
-            addLogMessage('📸 Loop activo. Presiona STOP para finalizar', 'info');
         } catch (error) {
             updateStatus('❌ Error iniciando escaneo', 'error');
-            addLogMessage('❌ Error al iniciar loop capture', 'error');
             isScanning = false;
             updateButtonStates();
             console.error(error);
@@ -539,25 +737,21 @@
 
     async function stopCapture() {
         updateStatus('⏹️ Deteniendo escaneo...', 'running');
-        addLogMessage('→ Enviando comando STOP', 'info');
 
         try {
             const response = await fetch('/action/stop', { method: 'POST' });
             const data = await response.json();
 
             isScanning = false;
-            updateStatus('✅ Escaneo finalizado', 'idle');
-            addLogMessage('✅ Escaneo detenido correctamente', 'success');
+            updateStatus(`✅ Escaneo finalizado - ${photoCount} fotos capturadas`, 'idle');
             updateButtonStates();
         } catch (error) {
             updateStatus('❌ Error deteniendo escaneo', 'error');
-            addLogMessage('❌ Error al detener escaneo', 'error');
             console.error(error);
         }
     }
 
     // Inicializar
     updateButtonStates();
-    addLogMessage('Sistema iniciado. Ejecuta AUTO HOME para comenzar', 'info');
 </script>
 {% endblock %}
