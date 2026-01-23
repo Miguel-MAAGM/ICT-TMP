@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Control{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 720px;">
+
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-controller fs-3"></i>
+    <h3 class="m-0">Control</h3>
+  </div>
+
+  <!-- MENSAJE DE ESTADO -->
+  <div id="statusBox" class="alert alert-secondary d-flex align-items-center gap-2" role="alert">
+    <i id="statusIcon" class="bi bi-info-circle-fill"></i>
+    <div id="statusText" class="fw-semibold">Listo. Elige una acción.</div>
+  </div>
+
+  <!-- BLOQUE 1: AUTOHOME -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title mb-3"><i class="bi bi-house me-2"></i>Auto Home</h5>
+      <button class="btn btn-primary w-100 py-3 fw-bold"
+              onclick="sendAction('autohome', 'Ejecutando AutoHome...')">
+        AUTO_HOME
+      </button>
+    </div>
+  </div>
+
+  <!-- BLOQUE 2: VELOCIDAD -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title mb-3"><i class="bi bi-speedometer2 me-2"></i>Velocidad (pasos por foto)</h5>
+
+      <div class="d-grid gap-2">
+        <button id="btnSlow" class="btn btn-outline-success py-2 fw-bold"
+                onclick="setSpeed('captureslow', 'Velocidad: LENTO (1 paso/foto)')">
+          LENTO
+        </button>
+
+        <button id="btnMid" class="btn btn-success py-2 fw-bold"
+                onclick="setSpeed('capturemid', 'Velocidad: MEDIO (50 pasos/foto)')">
+          MEDIO
+        </button>
+
+        <button id="btnFast" class="btn btn-outline-success py-2 fw-bold"
+                onclick="setSpeed('capturefast', 'Velocidad: RÁPIDO (100 pasos/foto)')">
+          RÁPIDO
+        </button>
+      </div>
+
+      <div class="text-muted mt-3">
+        Orden recomendado: <b>AutoHome → Velocidad → Loop Capture</b>.
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOQUE 3: LOOP + STOP -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title mb-3"><i class="bi bi-camera me-2"></i>Captura</h5>
+
+      <div class="d-grid gap-2">
+        <button class="btn btn-info text-white py-3 fw-bold"
+                onclick="sendAction('startloopcapture', 'Iniciando Loop Capture...')">
+          INICIAR LOOP_CAPTURE
+        </button>
+
+        <button class="btn btn-danger py-3 fw-bold"
+                onclick="sendAction('stop', 'Enviando STOP...')">
+          STOP
+        </button>
+      </div>
+
+      <div class="text-muted mt-3">
+        <b>STOP</b> detiene el motor en cualquier momento.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const statusBox = document.getElementById('statusBox');
+  const statusText = document.getElementById('statusText');
+  const statusIcon = document.getElementById('statusIcon');
+
+  const btnSlow = document.getElementById('btnSlow');
+  const btnMid  = document.getElementById('btnMid');
+  const btnFast = document.getElementById('btnFast');
+
+  let busy = false;
+
+  function setBusy(isBusy) {
+    busy = isBusy;
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(b => b.disabled = isBusy);
+  }
+
+  function setStatus(type, text) {
+    statusText.textContent = text;
+
+    // reset classes
+    statusBox.className = 'alert d-flex align-items-center gap-2';
+
+    if (type === 'working') {
+      statusBox.classList.add('alert-warning');
+      statusIcon.className = 'bi bi-arrow-repeat';
+    } else if (type === 'ok') {
+      statusBox.classList.add('alert-success');
+      statusIcon.className = 'bi bi-check-circle-fill';
+    } else if (type === 'error') {
+      statusBox.classList.add('alert-danger');
+      statusIcon.className = 'bi bi-exclamation-triangle-fill';
+    } else {
+      statusBox.classList.add('alert-secondary');
+      statusIcon.className = 'bi bi-info-circle-fill';
+    }
+  }
+
+  async function sendAction(action, workingMsg) {
+    if (busy) return;
+
+    setBusy(true);
+    setStatus('working', workingMsg);
+
+    try {
+      const res = await fetch(`/action/${action}`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setStatus('error', `Error: ${data.message || 'No se pudo ejecutar el comando'}`);
+        setBusy(false);
+        return;
+      }
+
+      setStatus('ok', 'Listo ✅ Ya puedes realizar la siguiente acción.');
+    } catch (e) {
+      setStatus('error', 'Error: no se pudo enviar el comando.');
+    }
+
+    setBusy(false);
+  }
+
+  function setSpeed(action, label) {
+    // UI: marcar el botón activo
+    btnSlow.classList.remove('btn-success');
+    btnSlow.classList.add('btn-outline-success');
+
+    btnMid.classList.remove('btn-success');
+    btnMid.classList.add('btn-outline-success');
+
+    btnFast.classList.remove('btn-success');
+    btnFast.classList.add('btn-outline-success');
+
+    if (action === 'captureslow') {
+      btnSlow.classList.remove('btn-outline-success');
+      btnSlow.classList.add('btn-success');
+    }
+    if (action === 'capturemid') {
+      btnMid.classList.remove('btn-outline-success');
+      btnMid.classList.add('btn-success');
+    }
+    if (action === 'capturefast') {
+      btnFast.classList.remove('btn-outline-success');
+      btnFast.classList.add('btn-success');
+    }
+
+    // mandar comando
+    sendAction(action, `Aplicando ${label}...`);
+  }
+</script>
+{% endblock %}
