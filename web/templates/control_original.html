@@ -1,380 +1,189 @@
 {% extends "base.html" %}
-{% block title %}Control{% endblock %}
-{% block content %}
+{% block title %}Control Simplificado{% endblock %}
 
+{% block extrahead %}
 <style>
-    :root {
-        --primary-blue: #2563eb;
-        --primary-blue-hover: #1d4ed8;
-        --secondary-slate: #475569;
-        --secondary-slate-hover: #334155;
-        --accent-orange: #f97316;
-        --accent-orange-hover: #ea580c;
-        --success-green: #10b981;
-        --success-green-hover: #059669;
-        --danger-red: #ef4444; 
-        --danger-red-hover: #dc2626;
-        --purple-royal: #7c3aed;
-        --purple-royal-hover: #6d28d9;
-        --bg-gray: #f8fafc;
-        --border-gray: #e2e8f0;
-        --text-dark: #1e293b;
-        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
+  /* Contenedor central para que se vea bien en móvil y PC */
+  .control-container {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 
-    body {
-        background: var(--bg-gray);
-    }
+  /* Estilos generales de botones grandes */
+  .btn-big {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 12px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.1s;
+  }
 
-    .control-container {
-        max-width: 1400px; /* Más ancho para que quepan las 3 columnas */
-        margin: 0 auto;
-        padding: 20px;
-    }
+  .btn-big:active {
+    transform: scale(0.98);
+  }
 
-    .page-title {
-        text-align: center;
-        color: var(--text-dark);
-        margin-bottom: 20px;
-    }
+  /* Grupo de botones de velocidad */
+  .speed-group {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+  }
 
-    /* === GRID LAYOUT PRINCIPAL (3 COLUMNAS) === */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: 250px 1fr 250px; /* Izquierda Fija | Centro Flexible | Derecha Fija */
-        gap: 20px;
-        align-items: start;
-    }
+  .speed-group .btn {
+    flex: 1; /* Para que los 3 ocupen el mismo ancho */
+    padding: 12px;
+    font-size: 1rem;
+  }
 
-    /* === COLUMNA IZQUIERDA (MOVIMIENTO) === */
-    .col-left {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: var(--shadow);
-        border: 1px solid var(--border-gray);
-    }
+  /* Colores específicos para facilitar la operación visual */
+  .btn-home { background-color: #0d6efd; color: white; } /* Azul */
+  .btn-loop { background-color: #198754; color: white; height: 80px; font-size: 1.5rem; } /* Verde grande */
+  .btn-stop { background-color: #dc3545; color: white; height: 80px; font-size: 1.5rem; border: 4px solid #b02a37; } /* Rojo Grande */
+  
+  /* Botones de velocidad (Gris oscuro) */
+  .btn-speed { 
+    background-color: #6c757d; 
+    color: white; 
+    border: 2px solid #6c757d;
+  }
+  
+  /* Clase para indicar velocidad seleccionada */
+  .btn-speed.active-speed {
+    background-color: #ffc107; /* Amarillo */
+    color: black;
+    border-color: #e0a800;
+    font-weight: 900;
+  }
 
-    .panel-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--secondary-slate);
-        text-align: center;
-        margin-bottom: 10px;
-        border-bottom: 2px solid var(--border-gray);
-        padding-bottom: 5px;
-    }
+  /* Títulos de secciones */
+  .section-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    text-align: center;
+  }
 
-    /* Control de Pasos */
-    .step-input-group {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        margin-bottom: 10px;
-    }
-    
-    .step-input-row {
-        display: flex;
-        gap: 5px;
-    }
+  /* Notificación flotante simple (Toast) */
+  #simple-toast {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 16px;
+    position: fixed;
+    z-index: 1000;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%);
+    font-size: 17px;
+    opacity: 0;
+    transition: opacity 0.3s, bottom 0.3s;
+  }
 
-    .step-input-row input {
-        width: 100%;
-        padding: 8px;
-        border: 2px solid var(--border-gray);
-        border-radius: 6px;
-        font-weight: bold;
-        text-align: center;
-        font-size: 1.1rem;
-    }
-
-    /* Flechas */
-    .arrows-row {
-        display: flex;
-        gap: 10px;
-    }
-
-    .arrows-row button {
-        flex: 1; /* Ocupan 50% cada uno */
-        font-size: 2rem;
-        padding: 10px;
-    }
-
-    /* === COLUMNA CENTRAL (VIDEO + ACCIONES RÁPIDAS) === */
-    .col-center {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-    }
-
-    .video-frame {
-        width: 100%;
-        background: black;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: var(--shadow);
-        border: 2px solid var(--border-gray);
-        /* Relación de aspecto para evitar saltos */
-        aspect-ratio: 16 / 9; 
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .video-frame img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
-
-    .center-actions {
-        display: flex;
-        gap: 20px;
-        width: 100%;
-        justify-content: center;
-    }
-
-    /* === COLUMNA DERECHA (AUTOMATIZACIÓN) === */
-    .col-right {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: var(--shadow);
-        border: 1px solid var(--border-gray);
-    }
-
-    /* Velocidad Vertical */
-    .speed-vertical {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .btn-speed {
-        padding: 10px;
-        border: 1px solid var(--border-gray);
-        background: #f1f5f9;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.2s;
-    }
-
-    .btn-speed:hover { background: #e2e8f0; }
-    
-    .btn-speed.active { 
-        background: var(--primary-blue); 
-        color: white; 
-        border-color: var(--primary-blue);
-    }
-    .btn-speed.slow.active { background: var(--success-green); border-color: var(--success-green); }
-    .btn-speed.mid.active { background: var(--primary-blue); border-color: var(--primary-blue); }
-    .btn-speed.fast.active { background: var(--accent-orange); border-color: var(--accent-orange); }
-
-    /* === BOTONES COMUNES === */
-    button.main-btn {
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        color: white;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    button.main-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-    button.main-btn:active { transform: translateY(0); }
-
-    .btn-blue { background: var(--primary-blue); }
-    .btn-blue:hover { background: var(--primary-blue-hover); }
-
-    .btn-green { background: var(--success-green); }
-    .btn-green:hover { background: var(--success-green-hover); }
-
-    .btn-orange { background: var(--accent-orange); }
-    .btn-orange:hover { background: var(--accent-orange-hover); }
-
-    .btn-purple { background: var(--purple-royal); }
-    .btn-purple:hover { background: var(--purple-royal-hover); }
-
-    .btn-red { background: var(--danger-red); font-size: 1.2rem; padding: 15px 40px; }
-    .btn-red:hover { background: var(--danger-red-hover); }
-
-    .btn-photo { background: var(--secondary-slate); font-size: 1.2rem; padding: 15px 40px; }
-    .btn-photo:hover { background: var(--secondary-slate-hover); }
-
-    /* === RESPONSIVE (Móvil) === */
-    @media (max-width: 900px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr; /* Una sola columna */
-            grid-template-areas: 
-                "center"
-                "left"
-                "right";
-        }
-        .col-center { grid-area: center; }
-        .col-left { grid-area: left; }
-        .col-right { grid-area: right; }
-    }
-
-    /* TOAST (Igual que antes) */
-    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-    .toast { background: white; color: var(--text-dark); padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); display: flex; align-items: center; gap: 12px; min-width: 280px; transform: translateX(400px); opacity: 0; transition: all 0.3s ease; }
-    .toast.show { transform: translateX(0); opacity: 1; }
-    .toast.hide { transform: translateX(400px); opacity: 0; }
-    .toast.success { border-left: 4px solid var(--success-green); }
-    .toast.info { border-left: 4px solid var(--primary-blue); }
-    .toast.warning { border-left: 4px solid var(--accent-orange); }
-    .toast.danger { border-left: 4px solid var(--danger-red); }
-
+  #simple-toast.show {
+    visibility: visible;
+    opacity: 1;
+    bottom: 50px;
+  }
 </style>
+{% endblock %}
 
+{% block content %}
 <div class="control-container">
-    <h2 class="page-title">Panel de Control</h2>
 
-    <div class="dashboard-grid">
+  <div>
+    <div class="section-label">Configuración Inicial</div>
+    <button class="btn btn-big btn-home" onclick="sendCommand('autohome', 'Iniciando Auto Home...')">
+      <i class="bi bi-house-door-fill"></i> Auto Home
+    </button>
+  </div>
 
-        <div class="col-left">
-            <div class="panel-title">Movimiento</div>
+  <hr>
 
-            <div class="step-input-group">
-                <label>Paso (°):</label>
-                <div class="step-input-row">
-                    <input type="number" id="step-size" value="20" min="1" max="360">
-                    <button class="main-btn btn-green" onclick="setStepSize()">Set</button>
-                </div>
-            </div>
-
-            <div class="arrows-row">
-                <button class="main-btn btn-blue" onclick="sendAction('left')">⬅</button>
-                <button class="main-btn btn-blue" onclick="sendAction('right')">➡</button>
-            </div>
-        </div>
-
-        <div class="col-center">
-            
-            <div class="video-frame">
-                <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
-            </div>
-
-            <div class="center-actions">
-                <button class="main-btn btn-red" onclick="sendAction('stop')">
-                    🛑 STOP
-                </button>
-                <button class="main-btn btn-photo" onclick="sendAction('capture')">
-                    📸 FOTO
-                </button>
-            </div>
-
-        </div>
-
-        <div class="col-right">
-            <div class="panel-title">Automatización</div>
-
-            <label style="font-weight:600; font-size:0.9rem;">Velocidad:</label>
-            <div class="speed-vertical">
-                <button class="btn-speed slow" onclick="setSpeed('SLOW', this)">Lento</button>
-                <button class="btn-speed mid active" onclick="setSpeed('MID', this)">Medio</button>
-                <button class="btn-speed fast" onclick="setSpeed('FAST', this)">Rápido</button>
-            </div>
-
-            <hr style="border:0; border-top:1px solid #e2e8f0; width:100%; margin: 5px 0;">
-
-            <button class="main-btn btn-orange" onclick="sendAction('start_loop')">
-                🔄 Loop (Video)
-            </button>
-            
-            <button class="main-btn btn-purple" onclick="sendAction('start_loop_capture')">
-                📸🔄 Escaneo (No Video)
-            </button>
-        </div>
-
+  <div>
+    <div class="section-label">Seleccionar Velocidad</div>
+    <div class="speed-group">
+      <button class="btn btn-big btn-speed" id="btn-slow" onclick="setSpeed('captureslow', 'btn-slow')">
+        Lento
+      </button>
+      <button class="btn btn-big btn-speed active-speed" id="btn-mid" onclick="setSpeed('capturemid', 'btn-mid')">
+        Medio
+      </button>
+      <button class="btn btn-big btn-speed" id="btn-fast" onclick="setSpeed('capturefast', 'btn-fast')">
+        Rápido
+      </button>
     </div>
+  </div>
+
+  <hr>
+
+  <div>
+    <div class="section-label">Ejecución</div>
+    <button class="btn btn-big btn-loop" onclick="sendCommand('startloopcapture', 'Iniciando Loop Capture...')">
+      <i class="bi bi-play-circle-fill"></i> INICIAR LOOP
+    </button>
+  </div>
+
+  <div class="mt-4">
+    <button class="btn btn-big btn-stop" onclick="sendCommand('stop', '¡STOP ENVIADO!')">
+      <i class="bi bi-stop-circle-fill"></i> STOP
+    </button>
+  </div>
+
 </div>
 
-<div class="toast-container" id="toast-container"></div>
+<div id="simple-toast">Comando Enviado</div>
 
 <script>
-// --- JAVASCRIPT IDÉNTICO AL ANTERIOR (Solo funciones lógicas) ---
+  // Función genérica para enviar comandos al servidor Flask
+  function sendCommand(action, message) {
+    showToast(message); // Mostrar mensaje visual al usuario
+    
+    // Llamada al backend (app_23_01.py)
+    fetch(`/action/${action}`, { method: 'POST' })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Respuesta:", data);
+        if (!data.success) {
+          showToast("Error: " + data.message);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        showToast("Error de conexión");
+      });
+  }
 
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    const icons = { success: '✓', info: 'ℹ', warning: '⚠', danger: '✕' };
-    toast.innerHTML = `<span style="font-size:1.2rem">${icons[type] || icons.info}</span><span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-        toast.classList.add('hide');
-        setTimeout(() => container.removeChild(toast), 300);
-    }, 3000);
-}
+  // Función específica para velocidad (cambia el color del botón activo)
+  function setSpeed(action, btnId) {
+    // Quitar clase activa de todos los botones de velocidad
+    document.querySelectorAll('.btn-speed').forEach(btn => {
+      btn.classList.remove('active-speed');
+    });
+    
+    // Poner clase activa al botón presionado
+    document.getElementById(btnId).classList.add('active-speed');
+    
+    // Enviar comando
+    let msg = 'Velocidad: ' + document.getElementById(btnId).innerText;
+    sendCommand(action, msg);
+  }
 
-function setSpeed(mode, btnElement) {
-    document.querySelectorAll('.btn-speed').forEach(b => b.classList.remove('active'));
-    btnElement.classList.add('active');
-    fetch('/set_speed', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ speed: mode })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.status === 'success') showToast(`Velocidad: ${mode}`, 'success');
-        else showToast('Error velocidad', 'danger');
-    }).catch(err => showToast('Error conexión', 'danger'));
-}
-
-function setStepSize() {
-    const stepInput = document.getElementById('step-size');
-    const val = parseInt(stepInput.value);
-    fetch('/set_step_size', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step_size: val })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'success') {
-             showToast(`Paso: ${val}°`, 'success');
-             stepInput.style.borderColor = '#10b981';
-             setTimeout(() => stepInput.style.borderColor = '#e2e8f0', 1000);
-        } else showToast('Error paso', 'warning');
-    }).catch(err => showToast('Error red', 'danger'));
-}
-
-function sendAction(action) {
-    const messages = {
-        'left': '⬅ Izquierda...', 'right': '➡ Derecha...',
-        'capture': '📸 Capturando...', 'start_loop': '🔄 Loop Video...',
-        'start_loop_capture': '🚀 Escaneo (No Video)...', 'stop': '🛑 STOP...'
-    };
-    showToast(messages[action], 'info');
-    fetch(`/action/${action}`, { method: "POST" })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                if (action === 'capture') showToast(`Foto OK: ${data.step}°`, 'success');
-                else if (action === 'start_loop_capture') showToast('Escaneo iniciado.', 'warning');
-                else if (action === 'stop') showToast('STOP OK', 'danger');
-                else showToast('Comando OK', 'success');
-            } else showToast(`Error: ${data.message}`, 'danger');
-        }).catch(err => showToast('Error conexión', 'danger'));
-}
-
-// Enter en el input de pasos
-document.getElementById('step-size').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') setStepSize();
-});
+  // Función para mostrar la notificación flotante
+  function showToast(text) {
+    var x = document.getElementById("simple-toast");
+    x.innerText = text;
+    x.className = "show";
+    setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+  }
 </script>
-
 {% endblock %}
