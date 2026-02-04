@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Control Simplificado{% endblock %}
+
+{% block extrahead %}
+<style>
+  /* Contenedor central para que se vea bien en móvil y PC */
+  .control-container {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Estilos generales de botones grandes */
+  .btn-big {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 12px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.1s;
+  }
+
+  .btn-big:active {
+    transform: scale(0.98);
+  }
+
+  /* Grupo de botones de velocidad */
+  .speed-group {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+  }
+
+  .speed-group .btn {
+    flex: 1; /* Para que los 3 ocupen el mismo ancho */
+    padding: 12px;
+    font-size: 1rem;
+  }
+
+  /* Colores específicos para facilitar la operación visual */
+  .btn-home { background-color: #0d6efd; color: white; } /* Azul */
+  .btn-loop { background-color: #198754; color: white; height: 80px; font-size: 1.5rem; } /* Verde grande */
+  .btn-stop { background-color: #dc3545; color: white; height: 80px; font-size: 1.5rem; border: 4px solid #b02a37; } /* Rojo Grande */
+
+  /* NUEVO: botón solo loop (calibración) */
+  .btn-solo {
+    background-color: #6f42c1; /* Morado */
+    color: white;
+    height: 80px;
+    font-size: 1.25rem;
+    border: 4px solid #5a34a3;
+  }
+
+  /* Botones de velocidad (Gris oscuro) */
+  .btn-speed {
+    background-color: #6c757d;
+    color: white;
+    border: 2px solid #6c757d;
+  }
+
+  /* Clase para indicar velocidad seleccionada */
+  .btn-speed.active-speed {
+    background-color: #ffc107; /* Amarillo */
+    color: black;
+    border-color: #e0a800;
+    font-weight: 900;
+  }
+
+  /* Títulos de secciones */
+  .section-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    text-align: center;
+  }
+
+  /* Caja informativa para calibración */
+  .hint-box {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: #495057;
+    font-size: 0.95rem;
+  }
+
+  /* Notificación flotante simple (Toast) */
+  #simple-toast {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 16px;
+    position: fixed;
+    z-index: 1000;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%);
+    font-size: 17px;
+    opacity: 0;
+    transition: opacity 0.3s, bottom 0.3s;
+  }
+
+  #simple-toast.show {
+    visibility: visible;
+    opacity: 1;
+    bottom: 50px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="control-container">
+
+  <div>
+    <div class="section-label">Configuración Inicial</div>
+    <button class="btn btn-big btn-home" onclick="sendCommand('autohome', 'Iniciando Auto Home...')">
+      <i class="bi bi-house-door-fill"></i> Auto Home
+    </button>
+  </div>
+
+  <hr>
+
+  <div>
+    <div class="section-label">Seleccionar Velocidad (Captura)</div>
+    <div class="speed-group">
+      <button class="btn btn-big btn-speed" id="btn-slow" onclick="setSpeed('captureslow', 'btn-slow')">
+        Lento
+      </button>
+      <button class="btn btn-big btn-speed active-speed" id="btn-mid" onclick="setSpeed('capturemid', 'btn-mid')">
+        Medio
+      </button>
+      <button class="btn btn-big btn-speed" id="btn-fast" onclick="setSpeed('capturefast', 'btn-fast')">
+        Rápido
+      </button>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ========================= BLOQUE CAPTURA ========================= -->
+  <div>
+    <div class="section-label">Ejecución (Captura de fotos)</div>
+    <button class="btn btn-big btn-loop" onclick="sendCommand('startloopcapture', 'Iniciando Loop Capture...')">
+      <i class="bi bi-play-circle-fill"></i> INICIAR LOOP
+    </button>
+  </div>
+
+  <!-- ========================= BLOQUE SOLO LOOP (SEPARADO) ========================= -->
+  <hr>
+
+  <div>
+    <div class="section-label">Calibración (Movimiento continuo)</div>
+
+    <div class="hint-box">
+      Este modo es solo para dejar el sistema moviéndose ida/vuelta (ping-pong) para
+      mover el tablero de ajedrez durante la calibración. No es el modo de captura.
+    </div>
+
+    <div style="margin-top: 12px;">
+      <button class="btn btn-big btn-solo" onclick="sendCommand('sololoop', 'Iniciando SOLO LOOP (calibración)...')">
+        <i class="bi bi-arrow-left-right"></i> SOLO LOOP
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================= STOP GENERAL ========================= -->
+  <div class="mt-4">
+    <button class="btn btn-big btn-stop" onclick="sendCommand('stop', '¡STOP ENVIADO!')">
+      <i class="bi bi-stop-circle-fill"></i> STOP
+    </button>
+  </div>
+
+</div>
+
+<div id="simple-toast">Comando Enviado</div>
+
+<script>
+  // Función genérica para enviar comandos al servidor Flask
+  function sendCommand(action, message) {
+    showToast(message); // Mostrar mensaje visual al usuario
+
+    fetch(`/action/${action}`, { method: 'POST' })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Respuesta:", data);
+        if (!data.success) {
+          showToast("Error: " + data.message);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        showToast("Error de conexión");
+      });
+  }
+
+  // Función específica para velocidad (cambia el color del botón activo)
+  function setSpeed(action, btnId) {
+    document.querySelectorAll('.btn-speed').forEach(btn => {
+      btn.classList.remove('active-speed');
+    });
+
+    document.getElementById(btnId).classList.add('active-speed');
+
+    let msg = 'Velocidad: ' + document.getElementById(btnId).innerText;
+    sendCommand(action, msg);
+  }
+
+  // Función para mostrar la notificación flotante
+  function showToast(text) {
+    var x = document.getElementById("simple-toast");
+    x.innerText = text;
+    x.className = "show";
+    setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+  }
+</script>
+{% endblock %}
