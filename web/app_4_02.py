@@ -443,7 +443,7 @@ def control_action(cmd):
     if key == "solo_loop":
         print("🔄 SOLO LOOP (AUTO) INICIADO")
         # También pausamos el streaming para dar prioridad al guardado de fotos
-        streaming_active = False 
+        streaming_active = True 
         print("🚫 Streaming pausado por rendimiento")
         response = send_serial_command("SOLO_LOOP")
         return jsonify({"success": True, "message": response})
