@@ -1,0 +1,650 @@
+﻿{% extends "base.html" %}
+{% block title %}Nueva calibración de laser{% endblock %}
+
+{% block extrahead %}
+<style>
+  .calib-layout { display: flex; gap: 16px; align-items: flex-start; }
+  .panel-sliders { flex: 0 0 260px; min-width: 220px; }
+  .panel-preview { flex: 1; min-width: 0; }
+  .param-row   { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .param-row label     { min-width: 120px; font-size: .82rem; font-weight: 500; white-space: nowrap; }
+  .param-row input[type=range] { flex: 1; min-width: 60px; }
+  .param-row .val-badge { min-width: 34px; text-align: right; font-size: .82rem; font-family: monospace; }
+  .preview-wrap {
+    position: relative; background: #111; border-radius: 6px;
+    overflow: hidden; height: 400px; cursor: crosshair; user-select: none;
+  }
+  .preview-wrap img {
+    position: absolute; top: 0; left: 0;
+    transform-origin: 0 0; pointer-events: none;
+  }
+  .preview-label {
+    position: absolute; top: 6px; left: 8px; z-index: 10;
+    font-size: .72rem; background: rgba(0,0,0,.65); color: #fff;
+    padding: 2px 8px; border-radius: 10px; pointer-events: none;
+  }
+  .zoom-badge {
+    position: absolute; bottom: 6px; left: 8px; z-index: 10;
+    font-size: .72rem; background: rgba(0,0,0,.55); color: #fff;
+    padding: 1px 7px; border-radius: 10px; pointer-events: none;
+  }
+  .zoom-controls {
+    position: absolute; bottom: 6px; right: 8px; z-index: 10; display: flex; gap: 3px;
+  }
+  .zoom-controls button {
+    width: 26px; height: 26px; padding: 0; font-size: .8rem;
+    line-height: 1; border-radius: 4px; opacity: .8;
+  }
+  .zoom-controls button:hover { opacity: 1; }
+  .preview-placeholder {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; color: #666; font-size: .9rem;
+  }
+  #stats-bar { font-size: .82rem; }
+  /* Plot de fila */
+  #row-plot-wrap {
+    background: #1a1a2e; border-radius: 6px; padding: 10px 14px 6px;
+    margin-top: 8px; display: none;
+  }
+  #row-plot-wrap .plot-header {
+    font-size: .75rem; color: #aaa; margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  #row-canvas { width: 100%; height: 160px; display: block; cursor: default; }
+  #wrap-heatmap { cursor: crosshair; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <a href="{{ url_for('ajustes_laser') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+    <h5 class="mb-0">
+      <i class="bi bi-brightness-high text-danger"></i>
+      {% if perfil_inicial %}Editar: {{ perfil_inicial.nombre }}{% else %}Nueva calibracion de laser{% endif %}
+    </h5>
+  </div>
+
+  <div class="calib-layout">
+
+    <!-- Columna izquierda: sliders -->
+    <div class="panel-sliders">
+      <div class="card shadow-sm mb-2">
+        <div class="card-header py-2 fw-semibold small">
+          <i class="bi bi-sliders"></i> Parametros
+        </div>
+        <div class="card-body py-2 px-3">
+          <p class="text-muted mb-1" style="font-size:.75rem">COLOR DEL LASER</p>
+          <div class="param-row">
+            <label>sat_min</label>
+            <input type="range" id="sat_min" min="0" max="255" value="{{ perfil_inicial.sat_min if perfil_inicial else 40 }}">
+            <span class="val-badge" id="lbl_sat_min">{{ perfil_inicial.sat_min if perfil_inicial else 40 }}</span>
+          </div>
+          <div class="param-row">
+            <label>val_min</label>
+            <input type="range" id="val_min" min="0" max="255" value="{{ perfil_inicial.val_min if perfil_inicial else 30 }}">
+            <span class="val-badge" id="lbl_val_min">{{ perfil_inicial.val_min if perfil_inicial else 30 }}</span>
+          </div>
+          <div class="param-row">
+            <label>val_alto</label>
+            <input type="range" id="val_alto" min="100" max="255" value="{{ perfil_inicial.val_alto if perfil_inicial else 220 }}">
+            <span class="val-badge" id="lbl_val_alto">{{ perfil_inicial.val_alto if perfil_inicial else 220 }}</span>
+          </div>
+          <hr class="my-2">
+          <p class="text-muted mb-1" style="font-size:.75rem">DETECCION</p>
+          <div class="param-row">
+            <label>score_min</label>
+            <input type="range" id="score_min" min="0" max="80" value="{{ perfil_inicial.score_min if perfil_inicial else 18 }}">
+            <span class="val-badge" id="lbl_score_min">{{ perfil_inicial.score_min if perfil_inicial else 18 }}</span>
+          </div>
+          <div class="param-row">
+            <label>kernel_suave_x</label>
+            <input type="range" id="kernel_suave_x" min="1" max="31" step="2" value="{{ perfil_inicial.kernel_suave_x if perfil_inicial else 9 }}">
+            <span class="val-badge" id="lbl_kernel_suave_x">{{ perfil_inicial.kernel_suave_x if perfil_inicial else 9 }}</span>
+          </div>
+          <div class="param-row">
+            <label>ancho_min</label>
+            <input type="range" id="ancho_min" min="1" max="20" value="{{ perfil_inicial.ancho_min if perfil_inicial else 2 }}">
+            <span class="val-badge" id="lbl_ancho_min">{{ perfil_inicial.ancho_min if perfil_inicial else 2 }}</span>
+          </div>
+          <div class="param-row">
+            <label>ancho_max</label>
+            <input type="range" id="ancho_max" min="5" max="200" value="{{ perfil_inicial.ancho_max if perfil_inicial else 60 }}">
+            <span class="val-badge" id="lbl_ancho_max">{{ perfil_inicial.ancho_max if perfil_inicial else 60 }}</span>
+          </div>
+          <hr class="my-2">
+          <p class="text-muted mb-1" style="font-size:.75rem">SUAVIZADO 2D</p>
+          <div class="param-row">
+            <label>kernel_2d</label>
+            <input type="range" id="kernel_2d" min="0" max="9" step="2" value="{{ perfil_inicial.kernel_2d if perfil_inicial else 3 }}">
+            <span class="val-badge" id="lbl_kernel_2d">{{ perfil_inicial.kernel_2d if perfil_inicial else 3 }}</span>
+          </div>
+          <hr class="my-2">
+          <p class="text-muted mb-1" style="font-size:.75rem">NÚCLEO QUEMADO</p>
+          <div class="param-row" title="Cierre morfológico horizontal: rellena el centro quemado uniendo los bordes rojos">
+            <label>cierre_x</label>
+            <input type="range" id="cierre_x" min="0" max="31" step="1"
+                   value="{{ perfil_inicial.cierre_x if perfil_inicial and perfil_inicial.cierre_x is defined else 0 }}">
+            <span class="val-badge" id="lbl_cierre_x">{{ perfil_inicial.cierre_x if perfil_inicial and perfil_inicial.cierre_x is defined else 0 }}</span>
+          </div>
+          <div class="param-row" title="Cuánto puntúa el núcleo blanco saturado (para que el centro no quede oscuro)">
+            <label>peso_nucleo</label>
+            <input type="range" id="peso_nucleo" min="0" max="150" step="5"
+                   value="{{ perfil_inicial.peso_nucleo if perfil_inicial and perfil_inicial.peso_nucleo is defined else 60 }}">
+            <span class="val-badge" id="lbl_peso_nucleo">{{ perfil_inicial.peso_nucleo if perfil_inicial and perfil_inicial.peso_nucleo is defined else 60 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body py-2 px-3">
+          <label class="form-label small fw-semibold mb-1">Nombre del perfil</label>
+          <input type="text" class="form-control form-control-sm mb-2" id="nombre-perfil"
+                 placeholder="ej: laser_rojo_v1"
+                 value="{{ perfil_inicial.nombre | replace('.json','') if perfil_inicial else '' }}">
+          <button class="btn btn-success btn-sm w-100" id="btn-guardar" {% if not perfil_inicial %}disabled{% endif %}>
+            <i class="bi bi-floppy"></i> Guardar perfil
+          </button>
+          <small class="text-muted d-block mt-1" style="font-size:.72rem">Requiere al menos una captura.</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: preview -->
+    <div class="panel-preview">
+
+      <div class="card shadow-sm mb-2">
+        <div class="card-body py-2">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="btn-group btn-group-sm" role="group">
+              <input type="radio" class="btn-check" name="resolucion" id="res-stream"  value="stream"  autocomplete="off">
+              <label class="btn btn-outline-secondary" for="res-stream">
+                <i class="bi bi-speedometer2"></i> Rapida
+              </label>
+              <input type="radio" class="btn-check" name="resolucion" id="res-capture" value="capture" autocomplete="off" checked>
+              <label class="btn btn-outline-secondary" for="res-capture">
+                <i class="bi bi-camera"></i> Alta res
+              </label>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-preview">
+              <i class="bi bi-camera-fill"></i> Capturar
+            </button>
+            <button class="btn btn-warning btn-sm" id="btn-recalc" disabled>
+              <i class="bi bi-arrow-clockwise"></i> Recalcular
+            </button>
+            <div class="form-check form-switch mb-0 ms-1" title="Procesa solo la banda del láser, igual que el barrido">
+              <input class="form-check-input" type="checkbox" role="switch" id="roi-switch">
+              <label class="form-check-label small" for="roi-switch">
+                <i class="bi bi-arrows-collapse-vertical"></i> Modo barrido (ROI)
+              </label>
+            </div>
+            <div class="form-check form-switch mb-0 ms-1" title="Detección vectorizada (rápida) vs clásica (continuidad fila-a-fila)">
+              <input class="form-check-input" type="checkbox" role="switch" id="vec-switch" checked>
+              <label class="form-check-label small" for="vec-switch">
+                <i class="bi bi-lightning-charge"></i> Vectorizado
+              </label>
+            </div>
+            <span id="stats-bar" class="text-muted ms-auto small">Sin captura</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-md-6">
+          <div class="preview-wrap" id="wrap-overlay">
+            <span class="preview-label">Deteccion (linea verde)</span>
+            <div class="preview-placeholder" id="ph-overlay">
+              <i class="bi bi-camera fs-2 mb-1"></i>
+              <span>Captura para ver la deteccion</span>
+            </div>
+            <img id="img-overlay" class="d-none" alt="Deteccion laser">
+            <span class="zoom-badge" id="zbadge-overlay">fit</span>
+            <div class="zoom-controls">
+              <button class="btn btn-dark btn-sm" id="zin-overlay">+</button>
+              <button class="btn btn-dark btn-sm" id="zreset-overlay">o</button>
+              <button class="btn btn-dark btn-sm" id="zout-overlay">-</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="preview-wrap" id="wrap-heatmap">
+            <span class="preview-label">Mapa de calor (score)</span>
+            <div class="preview-placeholder" id="ph-heatmap">
+              <i class="bi bi-fire fs-2 mb-1"></i>
+              <span>Captura para ver el mapa de calor</span>
+            </div>
+            <img id="img-heatmap" class="d-none" alt="Mapa de calor">
+            <span class="zoom-badge" id="zbadge-heatmap">fit</span>
+            <div class="zoom-controls">
+              <button class="btn btn-dark btn-sm" id="zin-heatmap">+</button>
+              <button class="btn btn-dark btn-sm" id="zreset-heatmap">o</button>
+              <button class="btn btn-dark btn-sm" id="zout-heatmap">-</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <small class="text-muted d-block mt-1" style="font-size:.72rem">
+        Rueda del mouse para zoom · Arrastrar para mover · Doble clic para restablecer
+        · <strong>Click en el mapa de calor</strong> para graficar la fila
+      </small>
+
+      <!-- Plot de fila -->
+      <div id="row-plot-wrap">
+        <div class="plot-header">
+          <span id="row-plot-title">Fila --</span>
+          <span id="row-plot-legend" class="text-muted"></span>
+        </div>
+        <div id="row-plot-params" style="font-size:.7rem;font-family:monospace;color:#888;margin-bottom:3px"></div>
+        <canvas id="row-canvas"></canvas>
+        <div style="font-size:.68rem;color:#555;margin-top:2px">Rueda=zoom &nbsp;·&nbsp; Arrastrar=pan &nbsp;·&nbsp; Doble clic=reset</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const sliderIds = ['sat_min','val_min','val_alto','score_min','kernel_suave_x','ancho_min','ancho_max','kernel_2d','cierre_x','peso_nucleo'];
+sliderIds.forEach(id => {
+  document.getElementById(id).addEventListener('input', function() {
+    document.getElementById('lbl_' + id).textContent = this.value;
+  });
+});
+
+function getParams() {
+  var p = {};
+  sliderIds.forEach(function(id) { p[id] = Number(document.getElementById(id).value); });
+  p.resolucion = document.querySelector('input[name="resolucion"]:checked').value;
+  p.roi = document.getElementById('roi-switch').checked;
+  p.vectorizado = document.getElementById('vec-switch').checked;
+  return p;
+}
+
+// Al cambiar un switch, recalcular sobre la misma foto para comparar al instante
+['roi-switch', 'vec-switch'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', function() {
+    if (!btnRecalc.disabled) btnRecalc.click();
+  });
+});
+
+var btnPreview = document.getElementById('btn-preview');
+var btnRecalc  = document.getElementById('btn-recalc');
+var btnGuardar = document.getElementById('btn-guardar');
+var statsBar   = document.getElementById('stats-bar');
+
+function applyResult(data) {
+  if (!data.success) {
+    statsBar.innerHTML = '<span class="text-danger">' + (data.message || 'Error') + '</span>';
+    return;
+  }
+  statsBar.innerHTML =
+    '<span class="text-success me-2"><i class="bi bi-check-circle"></i> ' + data.pct + '% validas</span>' +
+    '<span class="me-2"><i class="bi bi-clock"></i> ' + data.ms + ' ms</span>' +
+    '<span class="text-muted">' + data.resolucion + '</span>';
+  setImage('overlay', 'data:image/jpeg;base64,' + data.imagen);
+  setImage('heatmap', 'data:image/jpeg;base64,' + data.heatmap);
+  // Guardar xs y dimensiones para el plot de fila
+  lastXs = data.xs || null;
+  lastH  = data.H  || 0;
+  lastW  = data.W  || 0;
+  btnGuardar.disabled = false;
+  btnRecalc.disabled  = false;
+}
+
+function setLoading(on, msg) {
+  btnPreview.disabled = on;
+  btnRecalc.disabled  = on;
+  if (on) {
+    btnPreview.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> ' + (msg || '');
+    statsBar.textContent = msg || '';
+  } else {
+    btnPreview.innerHTML = '<i class="bi bi-camera-fill"></i> Capturar';
+  }
+}
+
+btnPreview.addEventListener('click', function() {
+  setLoading(true, 'Capturando...');
+  fetch('/ajustes/laser/previsualizar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(getParams())
+  }).then(function(r){ return r.json(); })
+    .then(function(d){ setLoading(false); applyResult(d); })
+    .catch(function(e){ setLoading(false); statsBar.textContent = 'Error: ' + e; });
+});
+
+btnRecalc.addEventListener('click', function() {
+  setLoading(true, 'Recalculando...');
+  var p = getParams(); delete p.resolucion;
+  fetch('/ajustes/laser/recalcular', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(p)
+  }).then(function(r){ return r.json(); })
+    .then(function(d){ setLoading(false); applyResult(d); })
+    .catch(function(e){ setLoading(false); statsBar.textContent = 'Error: ' + e; });
+});
+
+btnGuardar.addEventListener('click', function() {
+  var nombre = document.getElementById('nombre-perfil').value.trim();
+  if (!nombre) { alert('Ingresa un nombre para el perfil.'); return; }
+  btnGuardar.disabled = true;
+  var payload = getParams();
+  delete payload.resolucion;
+  payload.nombre = nombre;
+  fetch('/ajustes/laser/guardar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      btnGuardar.disabled = false;
+      if (d.success) window.location.href = '{{ url_for("ajustes_laser") }}';
+      else alert('Error: ' + (d.message || ''));
+    });
+});
+
+// ── ZOOM / PAN (con sincronización entre imágenes) ─────────────────
+var lastXs = null, lastH = 0, lastW = 0;
+var MIN_SCALE = 0.05, MAX_SCALE = 15;
+var zs = {
+  overlay: { scale: 1, tx: 0, ty: 0 },
+  heatmap: { scale: 1, tx: 0, ty: 0 }
+};
+
+function applyT(key) {
+  var s   = zs[key];
+  var img = document.getElementById('img-' + key);
+  img.style.transform = 'translate(' + s.tx + 'px,' + s.ty + 'px) scale(' + s.scale + ')';
+  document.getElementById('zbadge-' + key).textContent = Math.round(s.scale * 100) + '%';
+}
+
+function syncTo(src) {
+  var dst = src === 'overlay' ? 'heatmap' : 'overlay';
+  zs[dst].scale = zs[src].scale;
+  zs[dst].tx    = zs[src].tx;
+  zs[dst].ty    = zs[src].ty;
+  applyT(dst);
+}
+
+function fitImg(key) {
+  var img  = document.getElementById('img-' + key);
+  var wrap = document.getElementById('wrap-' + key);
+  var iW = img.naturalWidth, iH = img.naturalHeight;
+  var wW = wrap.clientWidth,  wH = wrap.clientHeight;
+  if (!iW || !iH) return;
+  var fit = Math.min(wW / iW, wH / iH);
+  zs[key].scale = fit;
+  zs[key].tx    = (wW - iW * fit) / 2;
+  zs[key].ty    = (wH - iH * fit) / 2;
+  applyT(key);
+  syncTo(key);
+}
+
+function setImage(key, src) {
+  var img = document.getElementById('img-' + key);
+  var ph  = document.getElementById('ph-' + key);
+  img.onload = function() { fitImg(key); };
+  img.src = src;
+  img.classList.remove('d-none');
+  if (ph) ph.style.display = 'none';
+}
+
+function zoomAt(key, cx, cy, delta) {
+  var s    = zs[key];
+  var newS = Math.min(MAX_SCALE, Math.max(MIN_SCALE, s.scale + delta));
+  var f    = newS / s.scale;
+  s.tx     = cx - f * (cx - s.tx);
+  s.ty     = cy - f * (cy - s.ty);
+  s.scale  = newS;
+  applyT(key);
+  syncTo(key);
+}
+
+function setupWrap(key) {
+  var wrap = document.getElementById('wrap-' + key);
+
+  document.getElementById('zin-' + key).addEventListener('click', function() {
+    var r = wrap.getBoundingClientRect();
+    zoomAt(key, r.width / 2, r.height / 2, 0.5);
+  });
+  document.getElementById('zout-' + key).addEventListener('click', function() {
+    var r = wrap.getBoundingClientRect();
+    zoomAt(key, r.width / 2, r.height / 2, -0.5);
+  });
+  document.getElementById('zreset-' + key).addEventListener('click', function() { fitImg(key); });
+
+  wrap.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var rect = wrap.getBoundingClientRect();
+    zoomAt(key, e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 0.2 : -0.2);
+  }, { passive: false });
+
+  var dragging = false, sx = 0, sy = 0, stx = 0, sty = 0;
+  wrap.addEventListener('pointerdown', function(e) {
+    dragging = true; wrap._moved = false;
+    sx = e.clientX; sy = e.clientY;
+    stx = zs[key].tx; sty = zs[key].ty;
+    wrap.setPointerCapture(e.pointerId);
+    wrap.style.cursor = 'grabbing';
+  });
+  wrap.addEventListener('pointermove', function(e) {
+    if (!dragging) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wrap._moved = true;
+    zs[key].tx = stx + dx;
+    zs[key].ty = sty + dy;
+    applyT(key);
+    syncTo(key);
+  });
+  function endDrag() { dragging = false; wrap.style.cursor = 'crosshair'; }
+  wrap.addEventListener('pointerup', endDrag);
+  wrap.addEventListener('pointercancel', endDrag);
+  wrap.addEventListener('dblclick', function() { fitImg(key); });
+}
+
+setupWrap('overlay');
+setupWrap('heatmap');
+
+// ── PLOT DE FILA (click en heatmap, con zoom/pan) ────────────────
+(function() {
+  var wrapH      = document.getElementById('wrap-heatmap');
+  var canvas     = document.getElementById('row-canvas');
+  var plotWrap   = document.getElementById('row-plot-wrap');
+  var plotTitle  = document.getElementById('row-plot-title');
+  var plotLegend = document.getElementById('row-plot-legend');
+  var plotParams = document.getElementById('row-plot-params');
+  var PAD = { t: 14, b: 22, l: 40, r: 18 };
+  var plotState  = null;
+
+  // ── Click en heatmap → fetch fila ──────────────────────────────
+  wrapH.addEventListener('click', function(e) {
+    if (wrapH._moved) return;   // fue un drag, no un click
+    var img = document.getElementById('img-heatmap');
+    if (img.classList.contains('d-none')) return;
+    var rect = wrapH.getBoundingClientRect();
+    var cy   = e.clientY - rect.top;
+    var s    = zs['heatmap'];
+    var iy   = (cy - s.ty) / s.scale;
+    var imgH = img.naturalHeight;
+    if (!imgH || !lastH) return;
+    var rowOrig = Math.round(iy * (lastH / imgH));
+    rowOrig = Math.max(0, Math.min(rowOrig, lastH - 1));
+    fetchFila(rowOrig);
+  });
+
+  function fetchFila(row) {
+    var p = getParams();
+    fetch('/ajustes/laser/fila', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        row:            row,
+        sat_min:        p.sat_min,
+        val_min:        p.val_min,
+        val_alto:       p.val_alto,
+        score_min:      p.score_min,
+        kernel_suave_x: p.kernel_suave_x,
+        kernel_2d:      p.kernel_2d,
+        cierre_x:       p.cierre_x,
+        peso_nucleo:    p.peso_nucleo
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.success) return;
+      var p = getParams();
+      plotState = {
+        score:    d.score,
+        scoreMin: d.score_min,
+        xDet:     d.x_detectado,
+        row:      d.row,
+        W:        d.W,
+        vMin:     0,
+        vMax:     d.W,
+        params: { sat_min: p.sat_min, val_min: p.val_min, val_alto: p.val_alto,
+                  score_min: p.score_min, kernel: p.kernel_suave_x,
+                  ancho_min: p.ancho_min, ancho_max: p.ancho_max }
+      };
+      redrawPlot();
+    })
+    .catch(function(e){ console.warn('fila error:', e); });
+  }
+
+  // ── Redibuja usando plotState.vMin / vMax ──────────────────────
+  function redrawPlot() {
+    if (!plotState) return;
+    var ps = plotState;
+
+    plotWrap.style.display = 'block';
+    plotTitle.textContent  = 'Fila ' + ps.row + ' / ' + lastH;
+    var xDetStr = ps.xDet != null ? '  x det: ' + ps.xDet.toFixed(1) : '  sin detección';
+    plotLegend.textContent = 'max score: ' + Math.max.apply(null, ps.score).toFixed(0) + xDetStr;
+    if (plotParams) {
+      var pr = ps.params;
+      plotParams.textContent =
+        'sat_min:' + pr.sat_min + '  val_min:' + pr.val_min + '  val_alto:' + pr.val_alto +
+        '  score_min:' + pr.score_min + '  kernel:' + pr.kernel +
+        '  ancho:' + pr.ancho_min + '–' + pr.ancho_max;
+    }
+
+    canvas.width  = canvas.parentElement.clientWidth - 28;
+    canvas.height = 160;
+    var cw = canvas.width, ch = canvas.height;
+    var pad = PAD, pw = cw - pad.l - pad.r, ph = ch - pad.t - pad.b;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, cw, ch);
+
+    var vMin = ps.vMin, vMax = ps.vMax, n = ps.score.length, maxVal = 255;
+    var iMin = Math.max(0,   Math.floor(vMin * (n - 1) / ps.W));
+    var iMax = Math.min(n-1, Math.ceil( vMax * (n - 1) / ps.W));
+
+    function xc(col) { return pad.l + (col - vMin) / (vMax - vMin) * pw; }
+    function yc(v)   { return pad.t + ph - (v / maxVal) * ph; }
+
+    ctx.fillStyle = '#12122a';
+    ctx.fillRect(pad.l, pad.t, pw, ph);
+
+    // Grilla Y
+    [0, 64, 128, 192, 255].forEach(function(v) {
+      var yy = yc(v);
+      ctx.strokeStyle = '#2a2a50'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(pad.l + pw, yy); ctx.stroke();
+      ctx.fillStyle = '#666'; ctx.font = '9px monospace';
+      ctx.fillText(v, 2, yy + 3);
+    });
+
+    // Grilla X (5 divisiones)
+    ctx.fillStyle = '#555'; ctx.font = '9px monospace';
+    for (var gi = 0; gi <= 5; gi++) {
+      var gx = vMin + gi * (vMax - vMin) / 5, gxc = xc(gx);
+      ctx.strokeStyle = '#2a2a50'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(gxc, pad.t); ctx.lineTo(gxc, pad.t + ph); ctx.stroke();
+      ctx.fillText(Math.round(gx), gxc - 8, ch - 5);
+    }
+
+    // Threshold score_min
+    var yThr = yc(ps.scoreMin);
+    ctx.strokeStyle = 'rgba(255,200,0,.75)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(pad.l, yThr); ctx.lineTo(pad.l + pw, yThr); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,200,0,.9)'; ctx.font = '9px monospace';
+    ctx.fillText('thr', pad.l + pw + 2, yThr + 3);
+
+    // Curva de score
+    ctx.beginPath(); ctx.strokeStyle = '#ff6b35'; ctx.lineWidth = 1.5;
+    var first = true;
+    for (var i = iMin; i <= iMax; i++) {
+      var col = i * ps.W / (n - 1);
+      first ? ctx.moveTo(xc(col), yc(ps.score[i])) : ctx.lineTo(xc(col), yc(ps.score[i]));
+      first = false;
+    }
+    ctx.stroke();
+
+    // Posición detectada
+    if (ps.xDet != null && ps.xDet >= vMin && ps.xDet <= vMax) {
+      var xd = xc(ps.xDet);
+      ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(xd, pad.t); ctx.lineTo(xd, pad.t + ph); ctx.stroke();
+      ctx.fillStyle = '#00ff88'; ctx.font = 'bold 9px monospace';
+      ctx.fillText('x=' + ps.xDet.toFixed(1), xd + 3, pad.t + 12);
+    }
+
+    // Indicador de rango visible
+    if (vMin > 0 || vMax < ps.W) {
+      ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '9px monospace';
+      ctx.fillText('cols ' + Math.round(vMin) + '–' + Math.round(vMax), pad.l + 4, pad.t + 11);
+    }
+  }
+
+  // ── Zoom / Pan en el canvas ────────────────────────────────────
+  canvas.style.cursor = 'grab';
+
+  canvas.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    if (!plotState) return;
+    var rect  = canvas.getBoundingClientRect();
+    var frac  = Math.max(0, Math.min(1, (e.clientX - rect.left - PAD.l) / (canvas.width - PAD.l - PAD.r)));
+    var range = plotState.vMax - plotState.vMin;
+    var dataX = plotState.vMin + frac * range;
+    var newRange = Math.min(plotState.W, range * (e.deltaY < 0 ? 0.7 : 1.4));
+    var nMin = dataX - frac * newRange, nMax = dataX + (1 - frac) * newRange;
+    if (nMin < 0)           { nMax -= nMin; nMin = 0; }
+    if (nMax > plotState.W) { nMin -= (nMax - plotState.W); nMax = plotState.W; }
+    plotState.vMin = Math.max(0, nMin);
+    plotState.vMax = Math.min(plotState.W, nMax);
+    redrawPlot();
+  }, { passive: false });
+
+  var pd = { active: false, startX: 0, startVMin: 0, startVMax: 0 };
+  canvas.addEventListener('pointerdown', function(e) {
+    if (!plotState) return;
+    pd.active = true; pd.startX = e.clientX;
+    pd.startVMin = plotState.vMin; pd.startVMax = plotState.vMax;
+    canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing';
+  });
+  canvas.addEventListener('pointermove', function(e) {
+    if (!pd.active || !plotState) return;
+    var pw    = canvas.width - PAD.l - PAD.r;
+    var shift = -((e.clientX - pd.startX) / pw) * (pd.startVMax - pd.startVMin);
+    var nMin  = pd.startVMin + shift, nMax = pd.startVMax + shift;
+    if (nMin < 0)           { nMax -= nMin; nMin = 0; }
+    if (nMax > plotState.W) { nMin -= (nMax - plotState.W); nMax = plotState.W; }
+    plotState.vMin = Math.max(0, nMin); plotState.vMax = Math.min(plotState.W, nMax);
+    redrawPlot();
+  });
+  function endPd() { pd.active = false; canvas.style.cursor = 'grab'; }
+  canvas.addEventListener('pointerup', endPd);
+  canvas.addEventListener('pointercancel', endPd);
+  canvas.addEventListener('dblclick', function() {
+    if (!plotState) return;
+    plotState.vMin = 0; plotState.vMax = plotState.W; redrawPlot();
+  });
+})();
+</script>
+{% endblock %}

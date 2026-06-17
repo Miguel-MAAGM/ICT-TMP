@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Calibración mecánica{% endblock %}
+{% block content %}
+
+<h2 class="mb-3"><i class="bi bi-rulers"></i> Calibración mecánica (rango desde Home)</h2>
+
+<a href="{{ url_for('ajustes') }}" class="btn btn-outline-secondary mb-4">
+  <i class="bi bi-arrow-left"></i> Volver a Ajustes
+</a>
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  Definí el <strong>rango de barrido en pasos desde HOME</strong>: el <strong>offset</strong> (dónde empieza el
+  barrido) y el <strong>máximo</strong> (dónde termina). Un barrido real irá a Home, avanzará el offset y barrerá
+  hasta el máximo. Usá <em>Home</em> para referenciar y el <em>jog</em> para llevar el eje a cada posición.
+</div>
+
+<!-- Vista de la cámara en vivo -->
+<div class="card mb-4">
+  <div class="card-header py-2"><i class="bi bi-camera-video"></i> Vista de la cámara</div>
+  <div class="card-body p-2">
+    <div class="border rounded bg-dark" style="height: 40vh;">
+      <img src="{{ url_for('video_feed') }}"
+           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;"
+           alt="Vista de la cámara">
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Posición / jog -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-2"><i class="bi bi-arrows-move"></i> Posición y movimiento</div>
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <div class="small text-muted">Posición desde Home (pasos)</div>
+            <div class="fs-3 fw-bold" id="pos-actual">—</div>
+          </div>
+          <span id="ref-badge" class="badge bg-secondary">sin referencia</span>
+        </div>
+
+        <button id="btn-home" class="btn btn-primary w-100 mb-3">
+          <i class="bi bi-house-door-fill"></i> Ir a Home (referenciar)
+        </button>
+
+        <div class="input-group input-group-sm mb-2">
+          <span class="input-group-text">Pasos por jog</span>
+          <input type="number" class="form-control" id="jog-pasos" value="200" min="1">
+        </div>
+        <div class="d-flex gap-2">
+          <button id="btn-jog-izq" class="btn btn-outline-dark flex-fill jogb">
+            <i class="bi bi-arrow-left"></i> Izquierda (a Home)
+          </button>
+          <button id="btn-jog-der" class="btn btn-outline-dark flex-fill jogb">
+            Derecha (alejar) <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+        <small class="text-muted d-block mt-2">
+          Mové el eje hasta cada posición y fijala con los botones de la derecha.
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rango -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-2"><i class="bi bi-rulers"></i> Rango de barrido</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label small mb-1">Offset / inicio (pasos desde Home)</label>
+          <div class="input-group input-group-sm">
+            <input type="number" class="form-control" id="offset-pasos" value="{{ mecanica.offset_pasos }}" min="0">
+            <button class="btn btn-outline-primary" id="btn-fijar-offset" title="Fijar con la posición actual">
+              <i class="bi bi-pin-map"></i> Usar posición actual
+            </button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small mb-1">Máximo / fin (pasos desde Home)</label>
+          <div class="input-group input-group-sm">
+            <input type="number" class="form-control" id="max-pasos" value="{{ mecanica.max_pasos }}" min="1">
+            <button class="btn btn-outline-primary" id="btn-fijar-max" title="Fijar con la posición actual">
+              <i class="bi bi-pin-map"></i> Usar posición actual
+            </button>
+          </div>
+        </div>
+        <div class="small text-muted mb-3">
+          Recorrido del barrido: <strong id="recorrido">—</strong> pasos
+        </div>
+        <button id="btn-guardar" class="btn btn-success w-100">
+          <i class="bi bi-floppy"></i> Guardar calibración mecánica
+        </button>
+        <div id="msg" class="small mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function $(id){ return document.getElementById(id); }
+
+function post(url, body) {
+  return fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},
+                      body: JSON.stringify(body||{}) }).then(r=>r.json());
+}
+
+function pintarEstado(s) {
+  $('pos-actual').textContent = (s.posicion != null ? s.posicion : '—');
+  const b = $('ref-badge');
+  if (s.referenciado) { b.className = 'badge bg-success'; b.textContent = 'referenciado'; }
+  else { b.className = 'badge bg-secondary'; b.textContent = 'sin referencia (homeá primero)'; }
+}
+
+function actualizarRecorrido() {
+  const off = parseInt($('offset-pasos').value) || 0;
+  const mx  = parseInt($('max-pasos').value) || 0;
+  $('recorrido').textContent = (mx > off) ? (mx - off) : '⚠ máximo ≤ offset';
+}
+['offset-pasos','max-pasos'].forEach(id => $(id).addEventListener('input', actualizarRecorrido));
+
+function cargarEstado() {
+  fetch('/api/mecanica/estado').then(r=>r.json()).then(pintarEstado).catch(()=>{});
+}
+
+// --- Home ---
+$('btn-home').addEventListener('click', () => {
+  $('btn-home').disabled = true;
+  $('btn-home').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Homing...';
+  post('/api/mecanica/home', {}).then(d => {
+    pintarEstado({ posicion: d.posicion, referenciado: d.success });
+    $('msg').innerHTML = d.success ? '<span class="text-success">✓ Home OK</span>'
+                                   : '<span class="text-danger">'+(d.message||'Error')+'</span>';
+  }).finally(() => {
+    $('btn-home').disabled = false;
+    $('btn-home').innerHTML = '<i class="bi bi-house-door-fill"></i> Ir a Home (referenciar)';
+  });
+});
+
+// --- Jog ---
+function jog(dir) {
+  const pasos = parseInt($('jog-pasos').value);
+  if (!pasos || pasos <= 0) { $('msg').innerHTML = '<span class="text-danger">Pasos inválido</span>'; return; }
+  document.querySelectorAll('.jogb').forEach(b => b.disabled = true);
+  post('/test_barrido/jog', { pasos, dir }).then(d => {
+    if (!d.success) $('msg').innerHTML = '<span class="text-danger">'+(d.message||'Error')+'</span>';
+    cargarEstado();
+  }).finally(() => document.querySelectorAll('.jogb').forEach(b => b.disabled = false));
+}
+$('btn-jog-der').addEventListener('click', () => jog(1));   // aleja de home
+$('btn-jog-izq').addEventListener('click', () => jog(0));   // hacia home
+
+// --- Fijar offset / máximo con la posición actual ---
+$('btn-fijar-offset').addEventListener('click', () => {
+  fetch('/api/mecanica/estado').then(r=>r.json()).then(s => {
+    $('offset-pasos').value = Math.max(0, s.posicion || 0); actualizarRecorrido();
+  });
+});
+$('btn-fijar-max').addEventListener('click', () => {
+  fetch('/api/mecanica/estado').then(r=>r.json()).then(s => {
+    $('max-pasos').value = Math.max(0, s.posicion || 0); actualizarRecorrido();
+  });
+});
+
+// --- Guardar ---
+$('btn-guardar').addEventListener('click', () => {
+  const off = parseInt($('offset-pasos').value) || 0;
+  const mx  = parseInt($('max-pasos').value) || 0;
+  post('/api/mecanica/guardar', { offset_pasos: off, max_pasos: mx }).then(d => {
+    $('msg').innerHTML = d.success ? '<span class="text-success">✓ Guardado</span>'
+                                   : '<span class="text-danger">'+(d.message||'Error')+'</span>';
+  });
+});
+
+actualizarRecorrido();
+cargarEstado();
+setInterval(cargarEstado, 2000);   // refresca posición
+</script>
+
+{% endblock %}

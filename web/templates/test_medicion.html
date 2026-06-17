@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Test de medición{% endblock %}
+{% block content %}
+
+<h2 class="mb-4"><i class="bi bi-rulers"></i> Test de medición (reconstrucción 3D)</h2>
+
+<a href="{{ url_for('ajustes') }}" class="btn btn-outline-secondary mb-4">
+  <i class="bi bi-arrow-left"></i> Volver a Ajustes
+</a>
+
+{% if perfil_camara and perfil_laser and perfil_plano %}
+<a href="{{ url_for('test_barrido') }}" class="btn btn-outline-info mb-4 ms-2">
+  <i class="bi bi-arrow-repeat"></i> Test de barrido (nube de puntos)
+</a>
+{% endif %}
+
+<!-- Avisos de perfiles activos -->
+<div class="row g-2 mb-4">
+  <div class="col-md-4">
+    <div class="alert {% if perfil_camara %}alert-success{% else %}alert-danger{% endif %} mb-0 py-2">
+      <i class="bi bi-camera-fill"></i> Cámara:
+      <strong>{{ perfil_camara or 'sin perfil' }}</strong>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="alert {% if perfil_laser %}alert-success{% else %}alert-danger{% endif %} mb-0 py-2">
+      <i class="bi bi-bullseye"></i> Láser:
+      <strong>{{ perfil_laser or 'sin perfil' }}</strong>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="alert {% if perfil_plano %}alert-success{% else %}alert-danger{% endif %} mb-0 py-2">
+      <i class="bi bi-grid-3x3"></i> Plano:
+      <strong>{{ perfil_plano or 'sin perfil' }}</strong>
+    </div>
+  </div>
+</div>
+
+{% if not (perfil_camara and perfil_laser and perfil_plano) %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  Para medir necesitas los tres perfiles activos (cámara, láser y plano).
+  Selecciónalos en <a href="{{ url_for('ajustes') }}" class="alert-link">Ajustes</a>.
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <!-- IZQUIERDA: streaming en vivo -->
+  <div class="col-lg-6">
+    <div class="border rounded bg-dark position-relative" style="height: 50vh;">
+      <img src="{{ url_for('video_feed') }}"
+           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <button id="btn-medir" class="btn btn-info text-white btn-lg flex-fill">
+        <i class="bi bi-rulers"></i> Medir (puntual)
+      </button>
+      <button id="btn-escanear" class="btn btn-primary btn-lg flex-fill">
+        <i class="bi bi-card-list"></i> Escanear perfil
+      </button>
+    </div>
+
+    <!-- Opciones de guardado para el escaneo -->
+    <div class="card mt-3">
+      <div class="card-body py-2">
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" id="chk-guardar">
+          <label class="form-check-label" for="chk-guardar">
+            Guardar perfil como CSV (en <code>static/modelos</code>)
+          </label>
+        </div>
+        <input type="text" class="form-control form-control-sm" id="input-nombre"
+               placeholder="Nombre del CSV (opcional)" disabled>
+      </div>
+    </div>
+  </div>
+
+  <!-- DERECHA: resultados -->
+  <div class="col-lg-6">
+    <!-- Imagen con la línea detectada -->
+    <div class="border rounded bg-light d-flex align-items-center justify-content-center"
+         style="height: 35vh;">
+      <img id="img-resultado" src="" alt="Resultado"
+           style="max-width: 100%; max-height: 100%; display: none; border-radius: 8px;">
+      <span id="placeholder-resultado" class="text-muted">
+        <i class="bi bi-image"></i> La detección aparecerá aquí
+      </span>
+    </div>
+
+    <!-- Estadísticas -->
+    <div id="stats-panel" class="mt-3" style="display: none;">
+      <table class="table table-sm table-bordered mb-2">
+        <tbody>
+          <tr>
+            <th class="table-light">Puntos detectados</th>
+            <td id="st-num">—</td>
+            <th class="table-light">Detección</th>
+            <td id="st-pct">—</td>
+          </tr>
+          <tr>
+            <th class="table-light">Z (profundidad)</th>
+            <td colspan="3">
+              min <strong id="st-zmin">—</strong> ·
+              media <strong id="st-zmed">—</strong> ·
+              max <strong id="st-zmax">—</strong> mm
+            </td>
+          </tr>
+          <tr>
+            <th class="table-light">Distancia ‖X‖</th>
+            <td colspan="3">
+              min <strong id="st-dmin">—</strong> ·
+              media <strong id="st-dmed">—</strong> ·
+              max <strong id="st-dmax">—</strong> mm
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Perfil 3D (solo en escaneo) -->
+      <div id="perfil-container" style="display: none;">
+        <small class="text-muted">Perfil 3D (X, Y, Z) en mm:</small>
+        <div id="perfil-3d" class="border rounded bg-white w-100" style="height: 300px;"></div>
+        <div id="csv-link" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+  <div id="toast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body"><span id="toast-message"></span></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+const btnMedir = document.getElementById("btn-medir");
+const btnEscanear = document.getElementById("btn-escanear");
+const chkGuardar = document.getElementById("chk-guardar");
+const inputNombre = document.getElementById("input-nombre");
+const imgResultado = document.getElementById("img-resultado");
+const placeholderResultado = document.getElementById("placeholder-resultado");
+const statsPanel = document.getElementById("stats-panel");
+const perfilContainer = document.getElementById("perfil-container");
+const csvLink = document.getElementById("csv-link");
+const toastEl = document.getElementById("toast");
+const toastMessage = document.getElementById("toast-message");
+
+chkGuardar.addEventListener("change", () => {
+  inputNombre.disabled = !chkGuardar.checked;
+});
+
+function showToast(message, type = "success") {
+  toastMessage.textContent = message;
+  toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+  new bootstrap.Toast(toastEl).show();
+}
+
+function pintarStats(d) {
+  statsPanel.style.display = "block";
+  document.getElementById("st-num").textContent = d.stats.num_puntos;
+  document.getElementById("st-pct").textContent = d.pct + "%";
+  document.getElementById("st-zmin").textContent = d.stats.z_min;
+  document.getElementById("st-zmed").textContent = d.stats.z_media;
+  document.getElementById("st-zmax").textContent = d.stats.z_max;
+  document.getElementById("st-dmin").textContent = d.stats.dist_min;
+  document.getElementById("st-dmed").textContent = d.stats.dist_media;
+  document.getElementById("st-dmax").textContent = d.stats.dist_max;
+
+  if (d.imagen) {
+    imgResultado.src = "data:image/jpeg;base64," + d.imagen;
+    imgResultado.style.display = "block";
+    placeholderResultado.style.display = "none";
+  }
+}
+
+function dibujarPerfil(puntos) {
+  perfilContainer.style.display = "block";
+  const div = document.getElementById("perfil-3d");
+  if (!puntos || puntos.length === 0) {
+    Plotly.purge(div);
+    return;
+  }
+
+  // puntos = [[x, y, z], ...] en mm (frame cámara OpenCV)
+  const xs = puntos.map(p => p[0]);
+  const ys = puntos.map(p => p[1]);
+  const zs = puntos.map(p => p[2]);
+
+  const trace = {
+    type: 'scatter3d',
+    mode: 'markers',
+    x: xs, y: ys, z: zs,
+    marker: { size: 2, color: zs, colorscale: 'Viridis' }
+  };
+  const layout = {
+    margin: { l: 0, r: 0, t: 0, b: 0 },
+    scene: {
+      xaxis: { title: 'X (mm)' },
+      yaxis: { title: 'Y (mm)' },
+      zaxis: { title: 'Z (mm)' },
+      aspectmode: 'data'
+    }
+  };
+  Plotly.react(div, [trace], layout, { responsive: true });
+}
+
+function lanzar(url, body, conPerfil) {
+  btnMedir.disabled = true;
+  btnEscanear.disabled = true;
+  const restore = () => { btnMedir.disabled = false; btnEscanear.disabled = false; };
+
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {})
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.success) {
+        showToast(d.message || "Error en la medición", "danger");
+        return;
+      }
+      pintarStats(d);
+      if (conPerfil) {
+        dibujarPerfil(d.puntos);
+        if (d.csv_url) {
+          csvLink.innerHTML = `<a href="${d.csv_url}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-box"></i> Ver en 3D: ${d.nombre}</a>`;
+        } else {
+          csvLink.innerHTML = "";
+        }
+      } else {
+        perfilContainer.style.display = "none";
+      }
+      showToast(`✓ ${d.stats.num_puntos} puntos · Z medio ${d.stats.z_media} mm`, "success");
+    })
+    .catch(err => {
+      console.error(err);
+      showToast("Error de conexión", "danger");
+    })
+    .finally(restore);
+}
+
+btnMedir.addEventListener("click", () => {
+  lanzar("/test_medicion/medir", {}, false);
+});
+
+btnEscanear.addEventListener("click", () => {
+  lanzar("/test_medicion/escanear", {
+    guardar: chkGuardar.checked,
+    nombre: inputNombre.value
+  }, true);
+});
+</script>
+
+{% endblock %}

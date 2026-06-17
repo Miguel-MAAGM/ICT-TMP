@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}Nueva Calibración de Eje{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">🔄 Nueva calibración del eje de giro</h2>
+
+<!-- Aviso de perfil de cámara activo -->
+{% if perfil_camara %}
+<div class="alert alert-success d-flex align-items-center gap-2">
+  <i class="bi bi-camera-fill fs-5"></i>
+  <span>Perfil de cámara activo: <strong>{{ perfil_camara }}</strong></span>
+</div>
+{% else %}
+<div class="alert alert-danger d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <span>
+    No hay perfil de cámara activo. La calibración del eje necesita los intrínsecos.
+    Selecciona uno en <a href="{{ url_for('ajustes_camara') }}" class="alert-link">Ajustes › Cámara</a>.
+  </span>
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  Coloca un <strong>chessboard fijo en el suelo</strong> dentro del encuadre.
+  Captura una pose, <strong>mueve la barra unos grados</strong> con el jog y vuelve a capturar.
+  Repite en distintos ángulos del barrido (mínimo 4 poses, bien separadas).
+</div>
+
+<!-- Formulario chessboard -->
+<div class="mb-4">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Nombre de la calibración</label>
+      <input type="text" class="form-control" placeholder="Ej: eje_lab_01" id="input-nombre" required>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Tamaño del cuadro (mm)</label>
+      <input type="number" class="form-control" placeholder="Ej: 25" id="input-square" value="25" required>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Esquinas internas (columnas)</label>
+      <input type="number" class="form-control" placeholder="Ej: 7" id="input-columnas" value="7" required>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Esquinas internas (filas)</label>
+      <input type="number" class="form-control" placeholder="Ej: 6" id="input-filas" value="6" required>
+    </div>
+  </div>
+</div>
+
+<!-- Barra de progreso -->
+<div id="progress-container" class="mb-3" style="display: none;">
+  <div class="alert alert-info d-flex align-items-center" role="alert">
+    <div class="spinner-border spinner-border-sm me-3" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <div class="w-100">
+      <strong id="progress-message">Ajustando eje...</strong>
+      <div class="progress mt-2" style="height: 20px;">
+        <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+             role="progressbar" style="width: 0%">0%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Layout principal -->
+<div class="row g-4">
+  <!-- IZQUIERDA: Streaming -->
+  <div class="col-lg-8 col-md-7">
+    <div class="border rounded bg-dark position-relative" style="height: 65vh;">
+      <img src="{{ url_for('video_feed') }}"
+           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">
+      <div class="position-absolute top-0 end-0 m-3">
+        <span class="badge bg-primary fs-5">
+          <i class="bi bi-images"></i>
+          <span id="capture-count">0</span> poses
+        </span>
+      </div>
+    </div>
+
+    <!-- Controles de JOG del eje -->
+    <div class="card mt-3">
+      <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+        <span class="fw-semibold"><i class="bi bi-arrows-move"></i> Mover eje</span>
+        <div class="input-group" style="width: 160px;">
+          <span class="input-group-text">pasos</span>
+          <input type="number" class="form-control" id="input-jog-pasos" value="500" min="1">
+        </div>
+        <button id="btn-jog-neg" class="btn btn-outline-dark">
+          <i class="bi bi-arrow-counterclockwise"></i> –
+        </button>
+        <button id="btn-jog-pos" class="btn btn-outline-dark">
+          + <i class="bi bi-arrow-clockwise"></i>
+        </button>
+        <small class="text-muted">Mové la barra entre capturas para variar el ángulo.</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- DERECHA: Captura + Galería + Botones -->
+  <div class="col-lg-4 col-md-5 d-flex flex-column" style="height: 65vh;">
+    <div class="d-flex justify-content-end mb-3 gap-2">
+      <button id="btn-capture" class="btn btn-primary btn-lg">
+        <i class="bi bi-camera-fill"></i> Capturar pose
+      </button>
+    </div>
+
+    <div id="gallery" class="gallery mb-3" style="height: 280px; overflow-y: auto;">
+      <div class="text-center text-muted p-4">
+        <i class="bi bi-camera display-4 d-block mb-2"></i>
+        <p>Aún no hay poses</p>
+        <small>Coloca el chessboard en el suelo y captura en varios ángulos</small>
+      </div>
+    </div>
+
+    <div class="alert alert-warning mb-3" id="alert-requirement">
+      <small>
+        <i class="bi bi-info-circle"></i>
+        <strong>Requisito:</strong> Se necesitan al menos 4 poses con el tablero
+        a distintos ángulos del barrido.
+      </small>
+    </div>
+
+    <div class="d-flex justify-content-center gap-2 mt-auto">
+      <button id="btn-generate" class="btn btn-success btn-lg px-4 w-100" disabled>
+        <i class="bi bi-gear-fill"></i> Generar calibración
+      </button>
+      <a href="{{ url_for('cancelar_calibracion_eje') }}" class="btn btn-danger btn-lg px-4 w-100">
+        <i class="bi bi-x-circle"></i> Cancelar
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #e3e3e3;
+    border-radius: 10px;
+    background: #fafafa;
+  }
+  .gallery img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .gallery img:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+  .fade-in { animation: fadeIn 0.3s ease-in; }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+</style>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+  <div id="toast-capture" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span id="toast-message">Pose capturada correctamente</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+let captureCount = 0;
+const MIN_CAPTURES = 4;
+
+const btnCapture = document.getElementById("btn-capture");
+const btnGenerate = document.getElementById("btn-generate");
+const gallery = document.getElementById("gallery");
+const captureCountEl = document.getElementById("capture-count");
+const toastEl = document.getElementById("toast-capture");
+const toastMessage = document.getElementById("toast-message");
+const alertRequirement = document.getElementById("alert-requirement");
+
+function showToast(message, type = 'success') {
+  toastMessage.textContent = message;
+  toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+  new bootstrap.Toast(toastEl).show();
+}
+
+function paramsBody() {
+  return {
+    cols: parseInt(document.getElementById('input-columnas').value),
+    rows: parseInt(document.getElementById('input-filas').value),
+    square_mm: parseFloat(document.getElementById('input-square').value),
+  };
+}
+
+// --- JOG del eje ---
+function jog(direction) {
+  const pasos = parseInt(document.getElementById('input-jog-pasos').value);
+  if (!pasos || pasos <= 0) { showToast('⚠ Pasos debe ser > 0', 'warning'); return; }
+  const btns = [document.getElementById('btn-jog-pos'), document.getElementById('btn-jog-neg')];
+  btns.forEach(b => b.disabled = true);
+  fetch('/test_barrido/jog', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pasos, dir: direction })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) showToast(`✓ Movido ${data.pasos_realizados} pasos`, 'success');
+      else showToast(data.message || '⚠ Error al mover', 'danger');
+    })
+    .catch(() => showToast('⚠ Error de conexión', 'danger'))
+    .finally(() => btns.forEach(b => b.disabled = false));
+}
+document.getElementById('btn-jog-pos').addEventListener('click', () => jog(1));
+document.getElementById('btn-jog-neg').addEventListener('click', () => jog(0));
+
+// --- Capturar pose ---
+btnCapture.addEventListener("click", () => {
+  const p = paramsBody();
+  if (!p.cols || !p.rows || !p.square_mm) {
+    showToast('⚠ Completa columnas, filas y tamaño del cuadro', 'warning');
+    return;
+  }
+  btnCapture.disabled = true;
+  btnCapture.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Capturando...';
+
+  fetch("/calibracion_eje/capture", {
+    method: "POST",
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(p)
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        captureCount = data.images_count;
+        captureCountEl.textContent = captureCount;
+        if (gallery.querySelector(".text-center")) gallery.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = data.url;
+        img.alt = "Pose " + captureCount;
+        img.className = "fade-in";
+        img.addEventListener("click", () => window.open(data.url, "_blank"));
+        gallery.appendChild(img);
+        gallery.scrollTop = gallery.scrollHeight;
+        showToast(`✓ ${data.message}`, 'success');
+        updateRequirementsUI(captureCount);
+      } else {
+        showToast(data.message || '⚠ Error al capturar la pose', 'danger');
+      }
+    })
+    .catch(err => { console.error(err); showToast('⚠ Error de conexión', 'danger'); })
+    .finally(() => {
+      btnCapture.disabled = false;
+      btnCapture.innerHTML = '<i class="bi bi-camera-fill"></i> Capturar pose';
+    });
+});
+
+// --- Generar calibración ---
+btnGenerate.addEventListener("click", () => {
+  const nombre = document.getElementById("input-nombre").value;
+  if (!nombre) { showToast('⚠ Ingresa un nombre para la calibración', 'warning'); return; }
+
+  btnGenerate.disabled = true;
+  btnCapture.disabled = true;
+
+  const progressContainer = document.getElementById("progress-container");
+  const progressBar = document.getElementById("progress-bar");
+  const progressMessage = document.getElementById("progress-message");
+  progressContainer.style.display = "block";
+  progressMessage.textContent = "Ajustando eje de giro...";
+  progressBar.style.width = "50%";
+  progressBar.textContent = "50%";
+
+  fetch("/calibracion_eje/compute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: nombre })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      progressBar.style.width = "100%";
+      progressBar.textContent = "100%";
+      progressBar.className = "progress-bar bg-success";
+      progressMessage.textContent = `¡Eje calibrado! Residual ${data.rms_point_mm.toFixed(3)} mm`;
+      if (data.warning) showToast(`⚠ ${data.warning}`, 'warning');
+      showToast(`✓ Calibración guardada: ${data.calibration_name}`, 'success');
+      setTimeout(() => { window.location.href = "/ajustes/eje"; }, 1800);
+    } else {
+      showToast(data.message || '⚠ Error al generar calibración', 'danger');
+      btnGenerate.disabled = false;
+      btnCapture.disabled = false;
+      progressContainer.style.display = 'none';
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    showToast('⚠ Error de conexión al generar calibración', 'danger');
+    btnGenerate.disabled = false;
+    btnCapture.disabled = false;
+    progressContainer.style.display = 'none';
+  });
+});
+
+function updateRequirementsUI(count) {
+  if (count >= MIN_CAPTURES) {
+    btnGenerate.disabled = false;
+    alertRequirement.className = "alert alert-success mb-3";
+    alertRequirement.innerHTML = `
+      <i class="bi bi-check-circle-fill"></i>
+      <strong>¡Listo!</strong> Tienes ${count} poses. Ya puedes generar la calibración.`;
+  } else {
+    btnGenerate.disabled = true;
+    alertRequirement.className = "alert alert-warning mb-3";
+    alertRequirement.innerHTML = `
+      <small><i class="bi bi-info-circle"></i>
+        <strong>Progreso:</strong> ${count}/${MIN_CAPTURES} poses capturadas</small>`;
+  }
+}
+
+// Polling de estado para sincronizar contador/galería
+setInterval(() => {
+  fetch("/calibracion_eje/status")
+    .then(res => res.json())
+    .then(data => {
+      if (data.images_captured !== captureCount) {
+        captureCount = data.images_captured;
+        captureCountEl.textContent = captureCount;
+        updateRequirementsUI(captureCount);
+        if (data.image_urls && data.image_urls.length > 0) renderGallery(data.image_urls);
+      }
+    })
+    .catch(err => console.error("Error polling status:", err));
+}, 1500);
+
+function renderGallery(urls) {
+  gallery.innerHTML = "";
+  urls.forEach((url, index) => {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Pose " + (index + 1);
+    img.className = "fade-in";
+    img.addEventListener("click", () => window.open(url, "_blank"));
+    gallery.appendChild(img);
+  });
+  gallery.scrollTop = gallery.scrollHeight;
+}
+</script>
+
+{% endblock %}

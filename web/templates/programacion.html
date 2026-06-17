@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Programación de barridos{% endblock %}
+{% block content %}
+
+<h2 class="mb-3"><i class="bi bi-alarm"></i> Programación de barridos</h2>
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle"></i>
+  Programá barridos por <strong>intervalo</strong> (cada N minutos/horas) o en una <strong>fecha y hora</strong>
+  puntual. Cuando llegue el momento y estés en la web, aparece un aviso con <strong>30 s</strong> para ejecutar
+  o abortar. El barrido usa los <strong>perfiles activos</strong> y el <strong>rango mecánico</strong> ya calibrados,
+  y se registra en la base de datos (archivo + hora).
+</div>
+
+<div class="row g-4">
+  <!-- Crear -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header py-2"><i class="bi bi-plus-circle"></i> Nuevo barrido programado</div>
+      <div class="card-body">
+        <div class="mb-2">
+          <label class="form-label small mb-0">Nombre</label>
+          <input type="text" id="p-nombre" class="form-control form-control-sm" placeholder="Ej: Barrido horario">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small mb-0">Tipo</label>
+          <select id="p-tipo" class="form-select form-select-sm">
+            <option value="intervalo" selected>Cada cierto tiempo (intervalo)</option>
+            <option value="fecha">Fecha y hora puntual</option>
+          </select>
+        </div>
+
+        <div id="bloque-intervalo" class="mb-2">
+          <label class="form-label small mb-0">Intervalo</label>
+          <div class="input-group input-group-sm">
+            <input type="number" id="p-intervalo" class="form-control" value="60" min="1">
+            <span class="input-group-text">min</span>
+          </div>
+          <div class="btn-group btn-group-sm mt-1" role="group">
+            <button class="btn btn-outline-secondary preset" data-min="30">30 min</button>
+            <button class="btn btn-outline-secondary preset" data-min="60">1 h</button>
+            <button class="btn btn-outline-secondary preset" data-min="720">12 h</button>
+            <button class="btn btn-outline-secondary preset" data-min="1440">24 h</button>
+          </div>
+        </div>
+
+        <div id="bloque-fecha" class="mb-2" style="display:none">
+          <label class="form-label small mb-0">Fecha y hora</label>
+          <input type="datetime-local" id="p-fecha" class="form-control form-control-sm">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small mb-0">Pasos por incremento (resolución del barrido)</label>
+          <input type="number" id="p-pasos" class="form-control form-control-sm" value="1000" min="1">
+          <small id="p-capturas" class="text-muted"></small>
+        </div>
+
+        <button id="btn-agregar" class="btn btn-success btn-sm w-100">
+          <i class="bi bi-plus-lg"></i> Agregar
+        </button>
+        <div id="p-msg" class="small mt-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header py-2"><i class="bi bi-list-task"></i> Barridos programados</div>
+      <div class="card-body">
+        <div id="lista" class="small text-muted">Cargando…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function $(id){ return document.getElementById(id); }
+function post(url, body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(r=>r.json()); }
+function fmt(epoch){ return epoch ? new Date(epoch*1000).toLocaleString() : '—'; }
+
+$('p-tipo').addEventListener('change', () => {
+  const f = $('p-tipo').value === 'fecha';
+  $('bloque-fecha').style.display = f ? '' : 'none';
+  $('bloque-intervalo').style.display = f ? 'none' : '';
+});
+document.querySelectorAll('.preset').forEach(b => b.addEventListener('click', () => {
+  $('p-intervalo').value = b.dataset.min;
+}));
+
+// Estimación de capturas según el recorrido mecánico (máx − offset) y los pasos/inc
+let recorridoMec = 0;
+function cargarMecanica() {
+  fetch('/api/mecanica/estado').then(r => r.json()).then(s => {
+    recorridoMec = Math.max(0, (s.max_pasos || 0) - (s.offset_pasos || 0));
+    actualizarCapturas();
+  }).catch(() => {});
+}
+function actualizarCapturas() {
+  const el = $('p-capturas');
+  const pasos = parseInt($('p-pasos').value) || 0;
+  if (recorridoMec <= 0) {
+    el.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Calibrá la mecánica (offset/máximo) para estimar capturas.</span>';
+    return;
+  }
+  if (pasos <= 0) { el.textContent = ''; return; }
+  const inc = Math.max(1, Math.floor(recorridoMec / pasos));
+  const total = inc + 1;   // + perfil inicial
+  el.innerHTML = `≈ <strong>${total}</strong> capturas · recorrido ${recorridoMec} pasos ÷ ${pasos}`;
+}
+$('p-pasos').addEventListener('input', actualizarCapturas);
+cargarMecanica();
+
+$('btn-agregar').addEventListener('click', () => {
+  const tipo = $('p-tipo').value;
+  const body = { nombre: $('p-nombre').value || 'Barrido', tipo: tipo,
+                 pasos_incremento: parseInt($('p-pasos').value) || 1000 };
+  if (tipo === 'intervalo') {
+    body.intervalo_min = parseInt($('p-intervalo').value) || 0;
+  } else {
+    const v = $('p-fecha').value;
+    if (!v) { $('p-msg').innerHTML = '<span class="text-danger">Elegí fecha y hora.</span>'; return; }
+    body.fecha_epoch = Math.floor(new Date(v).getTime() / 1000);
+  }
+  post('/api/programacion/agregar', body).then(d => {
+    if (d.success) { $('p-msg').innerHTML = '<span class="text-success">✓ Agregado</span>'; listar(); }
+    else $('p-msg').innerHTML = '<span class="text-danger">'+(d.message||'Error')+'</span>';
+  });
+});
+
+function listar() {
+  fetch('/api/programacion/listar').then(r=>r.json()).then(d => {
+    const cont = $('lista');
+    if (!d.jobs || d.jobs.length === 0) { cont.innerHTML = '<span class="text-muted">No hay barridos programados.</span>'; return; }
+    let html = '<ul class="list-group">';
+    d.jobs.forEach(j => {
+      const desc = j.tipo === 'intervalo' ? ('cada ' + j.intervalo_min + ' min') : ('el ' + fmt(j.fecha_epoch));
+      const badge = j.activo ? '<span class="badge bg-success">activo</span>' : '<span class="badge bg-secondary">pausado</span>';
+      html += `<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <strong>${j.nombre}</strong> ${badge}<br>
+          <small class="text-muted">${desc} · ${j.pasos_incremento} pasos/inc · próximo: ${fmt(j.proximo_epoch)}
+          ${j.ultimo_epoch ? ' · último: ' + fmt(j.ultimo_epoch) : ''}</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary tog" data-id="${j.id}">${j.activo ? 'Pausar' : 'Activar'}</button>
+          <button class="btn btn-sm btn-outline-danger del" data-id="${j.id}"><i class="bi bi-trash"></i></button>
+        </div>
+      </li>`;
+    });
+    html += '</ul>';
+    cont.innerHTML = html;
+    cont.querySelectorAll('.tog').forEach(b => b.addEventListener('click', () =>
+      post('/api/programacion/toggle', { id: b.dataset.id }).then(listar)));
+    cont.querySelectorAll('.del').forEach(b => b.addEventListener('click', () => {
+      if (confirm('¿Eliminar este barrido programado?'))
+        post('/api/programacion/eliminar', { id: b.dataset.id }).then(listar);
+    }));
+  });
+}
+
+listar();
+setInterval(listar, 15000);
+</script>
+
+{% endblock %}

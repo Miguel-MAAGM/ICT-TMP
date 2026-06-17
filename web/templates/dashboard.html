@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Dashboard de sensores{% endblock %}
+{% block content %}
+
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+  <h4 class="mb-0"><i class="bi bi-graph-up"></i> Dashboard de sensores</h4>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <label class="small text-muted mb-0">Ventana</label>
+    <select id="ventana" class="form-select form-select-sm" style="width:auto">
+      <option value="30">30 min</option>
+      <option value="60" selected>1 hora</option>
+      <option value="180">3 horas</option>
+      <option value="360">6 horas</option>
+      <option value="720">12 horas</option>
+      <option value="1440">24 horas</option>
+    </select>
+    <button id="btn-refrescar" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-arrow-clockwise"></i> Refrescar
+    </button>
+  </div>
+</div>
+
+<div id="estado" class="small text-muted mb-2">Cargando…</div>
+<div id="error-box" class="alert alert-warning py-2 small" style="display:none"></div>
+
+<!-- Selector de qué gráficos mostrar -->
+<div id="chart-toggles" class="d-flex flex-wrap align-items-center gap-3 mb-3 small"></div>
+
+<!-- Gráficos (uno por campo, una serie por sensor) -->
+<div id="charts" class="row g-3 mb-4"></div>
+
+<!-- Reporte por rango -->
+<div class="card">
+  <div class="card-header py-2"><i class="bi bi-file-earmark-spreadsheet"></i> Reporte de sensores (CSV)</div>
+  <div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Desde</label>
+        <input type="datetime-local" id="rep-desde" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Hasta</label>
+        <input type="datetime-local" id="rep-hasta" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Resolución (cada)</label>
+        <select id="rep-cada" class="form-select form-select-sm">
+          <option value="10s">10 s</option>
+          <option value="1m" selected>1 min</option>
+          <option value="5m">5 min</option>
+          <option value="15m">15 min</option>
+          <option value="1h">1 hora</option>
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button id="btn-reporte" class="btn btn-success btn-sm w-100">
+          <i class="bi bi-download"></i> Descargar CSV
+        </button>
+      </div>
+    </div>
+    <small class="text-muted d-block mt-2">
+      Elegí el rango de fecha/hora; el CSV trae una columna por sensor·campo, agregado por la resolución elegida.
+    </small>
+    <div id="rep-msg" class="small mt-2"></div>
+  </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+let timer = null;
+let ultimaData = {};        // último set de datos recibido (para re-render sin refetch)
+const seleccion = {};       // { campo: bool } - qué gráficos mostrar
+
+function setEstado(txt) { document.getElementById('estado').textContent = txt; }
+function showError(txt) {
+  const b = document.getElementById('error-box');
+  if (txt) { b.style.display = 'block'; b.textContent = txt; }
+  else { b.style.display = 'none'; }
+}
+
+function cargar() {
+  const minutos = document.getElementById('ventana').value;
+  setEstado('Actualizando…');
+  fetch(`/api/sensores/datos?minutos=${minutos}&cada=30s`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.success) { showError('InfluxDB: ' + (d.message || 'sin conexión')); setEstado('Error'); return; }
+      showError(null);
+      ultimaData = d.data || {};
+      render();
+      setEstado('Actualizado: ' + new Date().toLocaleTimeString());
+    })
+    .catch(e => { showError('Error de conexión: ' + e); setEstado('Error'); });
+}
+
+// Crea/actualiza los checkboxes de selección (uno por campo). Default: marcado.
+function actualizarChecks(campos) {
+  const cont = document.getElementById('chart-toggles');
+  if (campos.length && !cont.querySelector('.tog-label')) {
+    const lbl = document.createElement('span');
+    lbl.className = 'tog-label text-muted'; lbl.textContent = 'Mostrar:';
+    cont.appendChild(lbl);
+  }
+  campos.forEach(campo => {
+    if (!(campo in seleccion)) seleccion[campo] = true;
+    if (document.getElementById('chk-' + campo)) return;
+    const wrap = document.createElement('div'); wrap.className = 'form-check form-check-inline m-0';
+    const inp = document.createElement('input');
+    inp.className = 'form-check-input'; inp.type = 'checkbox';
+    inp.id = 'chk-' + campo; inp.checked = seleccion[campo];
+    inp.addEventListener('change', () => { seleccion[campo] = inp.checked; render(); });
+    const lab = document.createElement('label');
+    lab.className = 'form-check-label'; lab.htmlFor = 'chk-' + campo; lab.textContent = campo;
+    wrap.appendChild(inp); wrap.appendChild(lab); cont.appendChild(wrap);
+  });
+}
+
+function render() {
+  // ultimaData: { sensor: { campo: {t:[], v:[]} } } → un gráfico por campo, una traza por sensor
+  const porCampo = {};
+  Object.entries(ultimaData).forEach(([sensor, campos]) => {
+    Object.entries(campos).forEach(([campo, s]) => {
+      (porCampo[campo] = porCampo[campo] || []).push({
+        name: sensor, x: s.t, y: s.v, type: 'scatter', mode: 'lines', line: { width: 2 }
+      });
+    });
+  });
+
+  const cont = document.getElementById('charts');
+  const campos = Object.keys(porCampo).sort();
+  actualizarChecks(campos);
+
+  if (campos.length === 0) {
+    cont.innerHTML = '<div class="col-12 text-muted text-center p-4">Sin datos en el rango seleccionado.</div>';
+    return;
+  }
+  if (cont.querySelector('.text-center')) cont.innerHTML = '';
+
+  campos.forEach(campo => {
+    let col = document.getElementById('col-' + campo);
+    if (!col) {
+      col = document.createElement('div'); col.className = 'col-lg-6'; col.id = 'col-' + campo;
+      const card = document.createElement('div'); card.className = 'card h-100';
+      const body = document.createElement('div'); body.className = 'card-body p-2';
+      const h = document.createElement('div');
+      h.className = 'small fw-semibold text-muted mb-1'; h.textContent = campo;
+      const div = document.createElement('div'); div.id = 'chart-' + campo; div.style.height = '300px';
+      body.appendChild(h); body.appendChild(div); card.appendChild(body); col.appendChild(card);
+      cont.appendChild(col);
+    }
+    // Mostrar/ocultar según la selección
+    if (!seleccion[campo]) { col.style.display = 'none'; return; }
+    col.style.display = '';
+    Plotly.react(document.getElementById('chart-' + campo), porCampo[campo], {
+      margin: { l: 48, r: 10, t: 6, b: 32 },
+      legend: { orientation: 'h' },
+      xaxis: { type: 'date' }
+    }, { responsive: true, displaylogo: false });
+  });
+}
+
+function reprogramar() {
+  if (timer) clearInterval(timer);
+  cargar();
+  timer = setInterval(cargar, 60000);   // auto-refresh cada 1 minuto
+}
+
+document.getElementById('btn-refrescar').addEventListener('click', cargar);
+document.getElementById('ventana').addEventListener('change', reprogramar);
+
+// ===== Reporte CSV =====
+function toEpoch(id) {
+  const v = document.getElementById(id).value;
+  if (!v) return null;
+  const ms = new Date(v).getTime();      // datetime-local → epoch UTC (respeta tu zona)
+  return isNaN(ms) ? null : Math.floor(ms / 1000);
+}
+
+document.getElementById('btn-reporte').addEventListener('click', async () => {
+  const msg = document.getElementById('rep-msg');
+  const ini = toEpoch('rep-desde'), fin = toEpoch('rep-hasta');
+  if (ini == null || fin == null) { msg.innerHTML = '<span class="text-danger">Indicá desde y hasta.</span>'; return; }
+  if (fin <= ini) { msg.innerHTML = '<span class="text-danger">"Hasta" debe ser posterior a "Desde".</span>'; return; }
+  const cada = document.getElementById('rep-cada').value;
+  msg.innerHTML = 'Generando…';
+  try {
+    const r = await fetch(`/api/sensores/reporte?inicio=${ini}&fin=${fin}&cada=${cada}`);
+    const ct = r.headers.get('Content-Type') || '';
+    if (ct.includes('text/csv')) {
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'reporte_sensores.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(a.href);
+      msg.innerHTML = '<span class="text-success">✓ Descargado.</span>';
+    } else {
+      const j = await r.json().catch(() => ({ message: 'respuesta inesperada' }));
+      msg.innerHTML = '<span class="text-danger">Error: ' + (j.message || 'no se pudo generar') + '</span>';
+    }
+  } catch (e) {
+    msg.innerHTML = '<span class="text-danger">Error de conexión: ' + e + '</span>';
+  }
+});
+
+// Prefill del rango: última hora
+(function prefill() {
+  const now = new Date();
+  const ago = new Date(now.getTime() - 3600 * 1000);
+  const fmt = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('rep-hasta').value = fmt(now);
+  document.getElementById('rep-desde').value = fmt(ago);
+})();
+
+reprogramar();
+</script>
+
+{% endblock %}

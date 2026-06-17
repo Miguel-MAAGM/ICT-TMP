@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Calibración de cámara{% endblock %}
+{% block title %}Calibración del plano del laser{% endblock %}
 {% block content %}
 
-<h2 class="mb-4">📷 Calibración de cámara</h2>
+<h2 class="mb-4">📐 Calibración del plano del laser</h2>
 
 <a href="{{ url_for('ajustes') }}" class="btn btn-outline-secondary mb-4">
   <i class="bi bi-arrow-left"></i> Volver a Ajustes
@@ -33,14 +33,14 @@
     </span>
     <div class="d-flex gap-2">
       <button class="btn btn-sm {% if archivo == perfil_activo %}btn-success{% else %}btn-outline-success{% endif %} btn-seleccionar"
-              data-tipo="camara" data-nombre="{{ archivo }}">
+              data-tipo="plano" data-nombre="{{ archivo }}">
         <i class="bi bi-check2-circle"></i>
         {% if archivo == perfil_activo %}Seleccionado{% else %}Seleccionar{% endif %}
       </button>
-      <a href="{{ url_for('static', filename='calibraciones/' + archivo) }}" class="btn btn-sm btn-outline-primary">
+      <a href="{{ url_for('static', filename='calibraciones_plano/' + archivo) }}" class="btn btn-sm btn-outline-primary">
         <i class="bi bi-download"></i> Ver
       </a>
-      <button class="btn btn-sm btn-outline-danger btn-eliminar" data-tipo="camara" data-nombre="{{ archivo }}" title="Eliminar">
+      <button class="btn btn-sm btn-outline-danger btn-eliminar" data-tipo="plano" data-nombre="{{ archivo }}" title="Eliminar">
         <i class="bi bi-trash"></i>
       </button>
     </div>
@@ -48,14 +48,14 @@
   {% endfor %}
 </ul>
 {% else %}
-<p>No se encontraron calibraciones guardadas.</p>
+<p class="text-muted">No se encontraron calibraciones del plano guardadas.</p>
 {% endif %}
 
 <!-- Botón crear nueva calibración -->
 <div class="text-center mt-4">
-    <a href="{{ url_for('nueva_calibracion') }}" class="btn btn-lg btn-primary">
-        <i class="bi bi-plus-circle"></i> Crear nueva calibración
-    </a>
+  <a href="{{ url_for('nueva_calibracion_plano') }}" class="btn btn-lg btn-warning">
+    <i class="bi bi-plus-circle"></i> Crear nueva calibración de plano
+  </a>
 </div>
 
 <script>

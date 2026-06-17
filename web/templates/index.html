@@ -4,27 +4,63 @@
 
 <div class="d-flex justify-content-center align-items-center flex-grow-1">
   <div class="row text-center w-100">
-    <!-- Gota -->
+    <!-- Humedad -->
     <div class="col-md-4 mb-4">
       <i class="bi bi-droplet-fill" style="font-size: 3rem; color: #0d6efd;"></i>
-      <h4 class="mt-2">Precipitación</h4>
-      <p><strong>12 mm</strong> de agua</p>
+      <h4 class="mt-2">Humedad</h4>
+      <p><strong id="val-hum">—</strong></p>
     </div>
 
     <!-- Viento -->
     <div class="col-md-4 mb-4">
       <i class="bi bi-wind" style="font-size: 3rem; color: #198754;"></i>
       <h4 class="mt-2">Velocidad del viento</h4>
-      <p><strong>5.3 m/s</strong></p>
+      <p><strong id="val-vel">—</strong></p>
     </div>
 
     <!-- Dirección -->
     <div class="col-md-4 mb-4">
       <i class="bi bi-compass" style="font-size: 3rem; color: #fd7e14;"></i>
       <h4 class="mt-2">Dirección del viento</h4>
-      <p><strong>NE (45°)</strong></p>
+      <p><strong id="val-dir">—</strong></p>
     </div>
   </div>
 </div>
+
+<div class="text-center text-muted small" id="home-estado"></div>
+
+<script>
+// Campos reales escritos por el lector de sensores:
+//   humedad (WSS-05) · velocidad_viento + direccion_viento (string) + angulo_viento (WSS-02)
+function fmtNum(o, dec, unidad) {
+  return (o && o.value != null) ? (Number(o.value).toFixed(dec) + ' ' + unidad) : '—';
+}
+
+function actualizar() {
+  fetch('/api/sensores/ultimos').then(r => r.json()).then(d => {
+    const est = document.getElementById('home-estado');
+    if (!d.success) { est.textContent = 'Sin conexión a la base de datos.'; return; }
+    const v = d.valores || {};
+
+    document.getElementById('val-hum').textContent = fmtNum(v['humedad'], 1, '%');
+    document.getElementById('val-vel').textContent = fmtNum(v['velocidad_viento'], 1, 'm/s');
+
+    // Dirección: cardinal (string) + ángulo (°)
+    const dir = v['direccion_viento'], ang = v['angulo_viento'];
+    const card   = (dir && dir.value != null) ? String(dir.value) : null;
+    const grados = (ang && ang.value != null) ? (Number(ang.value).toFixed(0) + '°') : null;
+    let t = '—';
+    if (card && grados) t = card + ' (' + grados + ')';
+    else if (card)      t = card;
+    else if (grados)    t = grados;
+    document.getElementById('val-dir').textContent = t;
+
+    est.textContent = 'Actualizado: ' + new Date().toLocaleTimeString();
+  }).catch(() => { document.getElementById('home-estado').textContent = 'Error de conexión.'; });
+}
+
+actualizar();
+setInterval(actualizar, 30000);   // refresca cada 30 s
+</script>
 
 {% endblock %}

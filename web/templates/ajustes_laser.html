@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Calibración de cámara{% endblock %}
+{% block title %}Calibración de detección del laser{% endblock %}
 {% block content %}
 
-<h2 class="mb-4">📷 Calibración de cámara</h2>
+<h2 class="mb-4"><i class="bi bi-brightness-high text-danger"></i> Calibración de detección del laser</h2>
 
 <a href="{{ url_for('ajustes') }}" class="btn btn-outline-secondary mb-4">
   <i class="bi bi-arrow-left"></i> Volver a Ajustes
@@ -26,21 +26,22 @@
       {% endif %}
       {{ archivo }}
       {% if resoluciones.get(archivo) %}
-      <span class="badge bg-light text-secondary border ms-1" title="Resolución de la calibración">
+      <span class="badge bg-light text-secondary border ms-1" title="Resolución con que se ajustó">
         <i class="bi bi-aspect-ratio"></i> {{ resoluciones.get(archivo) }}
       </span>
       {% endif %}
     </span>
     <div class="d-flex gap-2">
+      <a href="{{ url_for('nueva_calibracion_laser', cargar=archivo) }}"
+         class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-pencil"></i> Editar
+      </a>
       <button class="btn btn-sm {% if archivo == perfil_activo %}btn-success{% else %}btn-outline-success{% endif %} btn-seleccionar"
-              data-tipo="camara" data-nombre="{{ archivo }}">
+              data-tipo="laser" data-nombre="{{ archivo }}">
         <i class="bi bi-check2-circle"></i>
         {% if archivo == perfil_activo %}Seleccionado{% else %}Seleccionar{% endif %}
       </button>
-      <a href="{{ url_for('static', filename='calibraciones/' + archivo) }}" class="btn btn-sm btn-outline-primary">
-        <i class="bi bi-download"></i> Ver
-      </a>
-      <button class="btn btn-sm btn-outline-danger btn-eliminar" data-tipo="camara" data-nombre="{{ archivo }}" title="Eliminar">
+      <button class="btn btn-sm btn-outline-danger btn-eliminar" data-tipo="laser" data-nombre="{{ archivo }}" title="Eliminar">
         <i class="bi bi-trash"></i>
       </button>
     </div>
@@ -48,20 +49,20 @@
   {% endfor %}
 </ul>
 {% else %}
-<p>No se encontraron calibraciones guardadas.</p>
+<p class="text-muted">No se encontraron perfiles de detección guardados.</p>
 {% endif %}
 
 <!-- Botón crear nueva calibración -->
 <div class="text-center mt-4">
-    <a href="{{ url_for('nueva_calibracion') }}" class="btn btn-lg btn-primary">
-        <i class="bi bi-plus-circle"></i> Crear nueva calibración
-    </a>
+  <a href="{{ url_for('nueva_calibracion_laser') }}" class="btn btn-lg btn-danger">
+    <i class="bi bi-plus-circle"></i> Crear nueva calibración
+  </a>
 </div>
 
 <script>
 document.querySelectorAll('.btn-seleccionar').forEach(btn => {
   btn.addEventListener('click', function() {
-    const tipo = this.dataset.tipo;
+    const tipo   = this.dataset.tipo;
     const nombre = this.dataset.nombre;
     fetch('/api/set_active_profile', {
       method: 'POST',
@@ -69,9 +70,7 @@ document.querySelectorAll('.btn-seleccionar').forEach(btn => {
       body: JSON.stringify({tipo, nombre})
     })
     .then(r => r.json())
-    .then(data => {
-      if (data.success) window.location.reload();
-    });
+    .then(data => { if (data.success) window.location.reload(); });
   });
 });
 

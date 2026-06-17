@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+{% block title %}Test de barrido{% endblock %}
+{% block content %}
+
+<h2 class="mb-4"><i class="bi bi-arrow-repeat"></i> Test de barrido (nube de puntos)</h2>
+
+<div class="d-flex gap-2 mb-4">
+  <a href="{{ url_for('ajustes') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Volver a Ajustes
+  </a>
+  <a href="{{ url_for('ajustes_mecanica') }}" class="btn btn-outline-dark">
+    <i class="bi bi-rulers"></i> Calibrar mecánica
+  </a>
+</div>
+
+<!-- Avisos de perfiles activos -->
+<div class="row g-2 mb-4">
+  <div class="col-md-3">
+    <div class="alert {% if perfil_camara %}alert-success{% else %}alert-danger{% endif %} mb-0 py-2">
+      <i class="bi bi-camera-fill"></i> Cámara: <strong>{{ perfil_camara or 'sin perfil' }}</strong>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="alert {% if perfil_laser %}alert-success{% else %}alert-danger{% endif %} mb-0 py-2">
+      <i class="bi bi-bullseye"></i> Láser: <strong>{{ perfil_laser or 'sin perfil' }}</strong>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="alert {% if perfil_plano %}alert-success{% else %}alert-danger{% endif %} mb-0 py-2">
+      <i class="bi bi-grid-3x3"></i> Plano: <strong>{{ perfil_plano or 'sin perfil' }}</strong>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="alert {% if perfil_eje %}alert-success{% else %}alert-warning{% endif %} mb-0 py-2">
+      <i class="bi bi-arrow-repeat"></i> Eje: <strong>{{ perfil_eje or 'auto (centroide)' }}</strong>
+    </div>
+  </div>
+</div>
+
+{% if not (perfil_camara and perfil_laser and perfil_plano) %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  Para barrer necesitas los tres perfiles activos (cámara, láser y plano).
+</div>
+{% endif %}
+
+<div class="text-muted small mb-3">
+  <i class="bi bi-aspect-ratio"></i>
+  Resolución de captura del barrido:
+  <strong>{{ captura_w }}×{{ captura_h }}</strong>
+  {% if perfil_camara %}<span class="ms-1">(de la calibración de cámara)</span>{% endif %}
+</div>
+
+<div class="row g-4">
+  <!-- IZQUIERDA: streaming + controles -->
+  <div class="col-lg-6">
+    <div class="border rounded bg-dark position-relative" style="height: 38vh;">
+      <img src="{{ url_for('video_feed') }}"
+           style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;">
+    </div>
+
+    <!-- 1. Geometría del eje -->
+    <div class="card mt-3">
+      <div class="card-header py-2"><i class="bi bi-gear"></i> 1 · Geometría del eje</div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-4">
+            <label class="form-label small mb-0">Pasos/rev motor</label>
+            <input type="number" class="form-control form-control-sm" id="cfg-pasos"
+                   value="{{ config.pasos_motor_rev }}">
+          </div>
+          <div class="col-4">
+            <label class="form-label small mb-0">Microstep</label>
+            <input type="number" class="form-control form-control-sm" id="cfg-micro"
+                   value="{{ config.microstep }}">
+          </div>
+          <div class="col-4">
+            <label class="form-label small mb-0">Reductor 1:N</label>
+            <input type="number" class="form-control form-control-sm" id="cfg-reductor"
+                   value="{{ config.reductor }}">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-0">Sentido de rotación</label>
+            <select class="form-select form-select-sm" id="cfg-sentido">
+              <option value="1" {% if config.sentido == 1 %}selected{% endif %}>+1 (horario)</option>
+              <option value="-1" {% if config.sentido == -1 %}selected{% endif %}>-1 (antihorario)</option>
+            </select>
+          </div>
+          <div class="col-6 d-flex align-items-end">
+            <small class="text-muted">Grados/paso:
+              <strong id="grados-paso">{{ '%.6f'|format(grados_por_paso) }}</strong>°</small>
+          </div>
+        </div>
+
+        <hr class="my-2">
+
+        <!-- Eje de rotación (punto y dirección) -->
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label small mb-1 fw-semibold">
+              <i class="bi bi-pin-angle"></i> Eje de rotación (frame cámara, mm)
+            </label>
+          </div>
+          {% if perfil_eje %}
+          <div class="col-12">
+            <div class="alert alert-success py-1 px-2 mb-1 small">
+              <i class="bi bi-check-circle-fill"></i>
+              Eje calibrado <strong>{{ perfil_eje }}</strong> cargado.
+              El barrido lo usa automáticamente (los campos son informativos).
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <div class="btn-group btn-group-sm w-100" role="group">
+              <input type="radio" class="btn-check" name="eje-modo" id="eje-auto"
+                     value="auto" {% if config.eje_modo != 'manual' %}checked{% endif %}>
+              <label class="btn btn-outline-secondary" for="eje-auto">Auto (centroide)</label>
+              <input type="radio" class="btn-check" name="eje-modo" id="eje-manual"
+                     value="manual" {% if config.eje_modo == 'manual' %}checked{% endif %}>
+              <label class="btn btn-outline-secondary" for="eje-manual">Manual</label>
+            </div>
+          </div>
+
+          <div id="eje-manual-campos" class="row g-2 mt-0"
+               style="{% if config.eje_modo != 'manual' %}display:none;{% endif %}">
+            <div class="col-12"><small class="text-muted">Punto del eje (pivote) X / Y / Z</small></div>
+            <div class="col-4">
+              <input type="number" step="1" class="form-control form-control-sm" id="eje-px"
+                     placeholder="X" value="{{ '%.1f'|format(config.axis_point[0]) if config.axis_point else 0 }}">
+            </div>
+            <div class="col-4">
+              <input type="number" step="1" class="form-control form-control-sm" id="eje-py"
+                     placeholder="Y" value="{{ '%.1f'|format(config.axis_point[1]) if config.axis_point else 0 }}">
+            </div>
+            <div class="col-4">
+              <input type="number" step="1" class="form-control form-control-sm" id="eje-pz"
+                     placeholder="Z" value="{{ '%.1f'|format(config.axis_point[2]) if config.axis_point else -30 }}">
+            </div>
+            <div class="col-12 mt-1"><small class="text-muted">Dirección del eje X / Y / Z</small></div>
+            <div class="col-4">
+              <input type="number" step="0.01" class="form-control form-control-sm" id="eje-dx"
+                     placeholder="X" value="{{ '%.3f'|format(config.axis_dir[0]) }}">
+            </div>
+            <div class="col-4">
+              <input type="number" step="0.01" class="form-control form-control-sm" id="eje-dy"
+                     placeholder="Y" value="{{ '%.3f'|format(config.axis_dir[1]) }}">
+            </div>
+            <div class="col-4">
+              <input type="number" step="0.01" class="form-control form-control-sm" id="eje-dz"
+                     placeholder="Z" value="{{ '%.3f'|format(config.axis_dir[2]) }}">
+            </div>
+            <div class="col-12">
+              <small class="text-muted">
+                <i class="bi bi-info-circle"></i> El pivote está casi en la cámara:
+                prueba Z negativo pequeño (p. ej. −30) y dirección (1,0,0) o (0,1,0).
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Posicionar eje -->
+    <div class="card mt-3">
+      <div class="card-header py-2"><i class="bi bi-arrows-move"></i> 2 · Posicionar eje (jog)</div>
+      <div class="card-body">
+        <div class="input-group input-group-sm mb-2">
+          <span class="input-group-text">Pasos por jog</span>
+          <input type="number" class="form-control" id="jog-pasos" value="500">
+        </div>
+        <div class="d-flex gap-2">
+          <button id="btn-jog-izq" class="btn btn-outline-primary flex-fill">
+            <i class="bi bi-arrow-left"></i> Izquierda
+          </button>
+          <button id="btn-jog-der" class="btn btn-outline-primary flex-fill">
+            Derecha <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+        <button id="btn-origen" class="btn btn-warning w-100 mt-2">
+          <i class="bi bi-pin-map"></i> Fijar origen (reiniciar nube)
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. Barrido -->
+    <div class="card mt-3">
+      <div class="card-header py-2"><i class="bi bi-play-circle"></i> 3 · Barrido automático</div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-0">Pasos por incremento</label>
+            <input type="number" class="form-control form-control-sm" id="bar-pasos" value="1000">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-0">Nº de incrementos</label>
+            <input type="number" class="form-control form-control-sm" id="bar-incrementos" value="20">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-0">Dirección</label>
+            <select class="form-select form-select-sm" id="bar-dir">
+              <option value="1">Derecha</option>
+              <option value="0">Izquierda</option>
+            </select>
+          </div>
+          <div class="col-6 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="bar-inicial" checked>
+              <label class="form-check-label small" for="bar-inicial">Capturar perfil inicial</label>
+            </div>
+          </div>
+        </div>
+        <hr class="my-2">
+        <div class="form-check form-switch" title="Usa el rango mecánico calibrado: Home → offset → máximo. Ignora offset/incrementos manuales.">
+          <input class="form-check-input" type="checkbox" role="switch" id="bar-mecanica">
+          <label class="form-check-label small" for="bar-mecanica">
+            <i class="bi bi-rulers"></i> Usar rango mecánico calibrado (Home → offset → máximo)
+          </label>
+        </div>
+        <div class="form-check form-switch" title="Va a Home y aplica un offset fijo antes de barrer, para que cada barrido arranque desde la misma posición">
+          <input class="form-check-input" type="checkbox" role="switch" id="bar-home" checked>
+          <label class="form-check-label small" for="bar-home">
+            <i class="bi bi-house"></i> Ir a Home + offset antes de barrer (referencia)
+          </label>
+        </div>
+        <div class="row g-2 mt-1" id="home-offset-row">
+          <div class="col-6">
+            <label class="form-label small mb-0">Offset desde Home (pasos)</label>
+            <input type="number" class="form-control form-control-sm" id="bar-offset" value="0" min="0">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-0">Dirección offset</label>
+            <select class="form-select form-select-sm" id="bar-offset-dir">
+              <option value="1">Derecha</option>
+              <option value="0">Izquierda</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-check form-switch mt-3" title="Pausa el preview durante el barrido: libera la cámara y va más fluido">
+          <input class="form-check-input" type="checkbox" role="switch" id="bar-pausar-stream" checked>
+          <label class="form-check-label small" for="bar-pausar-stream">
+            <i class="bi bi-camera-video-off"></i> Pausar streaming durante el barrido (más fluido)
+          </label>
+        </div>
+        <button id="btn-barrer" class="btn btn-primary w-100 mt-3 btn-lg">
+          <i class="bi bi-arrow-repeat"></i> Iniciar barrido
+        </button>
+        <button id="btn-parar" class="btn btn-danger w-100 mt-2" disabled>
+          <i class="bi bi-stop-circle"></i> Parar barrido
+        </button>
+
+        <div id="progreso-wrap" class="mt-3" style="display:none;">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span id="progreso-label">Perfil 0 / 0</span>
+            <span id="progreso-info">—</span>
+          </div>
+          <div class="progress" style="height: 20px;">
+            <div id="progreso-bar"
+                 class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                 role="progressbar" style="width: 0%;">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DERECHA: resultado 3D -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-box"></i> Nube acumulada</span>
+        <span id="info-nube" class="small text-muted">—</span>
+      </div>
+      <div class="card-body">
+        <div id="nube-3d" class="border rounded bg-white w-100" style="height: 45vh;"></div>
+        <div id="errores-box" class="alert alert-warning mt-2 py-2 small" style="display:none;"></div>
+
+        <div class="input-group input-group-sm mt-3">
+          <span class="input-group-text">Nombre CSV</span>
+          <input type="text" class="form-control" id="save-nombre" placeholder="opcional">
+          <button id="btn-guardar" class="btn btn-success" disabled>
+            <i class="bi bi-save"></i> Guardar
+          </button>
+        </div>
+        <div id="save-link" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+  <div id="toast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body"><span id="toast-message"></span></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+const toastEl = document.getElementById("toast");
+const toastMessage = document.getElementById("toast-message");
+let hayNube = false;
+
+function showToast(message, type = "success") {
+  toastMessage.textContent = message;
+  toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+  new bootstrap.Toast(toastEl).show();
+}
+
+function post(url, body) {
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {})
+  }).then(r => r.json());
+}
+
+function dibujarNube(puntos) {
+  const div = document.getElementById("nube-3d");
+  if (!puntos || puntos.length === 0) { Plotly.purge(div); return; }
+  const trace = {
+    type: 'scatter3d', mode: 'markers',
+    x: puntos.map(p => p[0]), y: puntos.map(p => p[1]), z: puntos.map(p => p[2]),
+    marker: { size: 1.5, color: puntos.map(p => p[2]), colorscale: 'Viridis' }
+  };
+  const layout = {
+    margin: { l: 0, r: 0, t: 0, b: 0 },
+    scene: {
+      xaxis: { title: 'X (mm)' }, yaxis: { title: 'Y (mm)' }, zaxis: { title: 'Z (mm)' },
+      aspectmode: 'data'
+    }
+  };
+  Plotly.react(div, [trace], layout, { responsive: true });
+}
+
+// --- Geometría ---
+function ejeModoActual() {
+  return document.querySelector('input[name="eje-modo"]:checked').value;
+}
+
+function enviarConfig() {
+  const modo = ejeModoActual();
+  const payload = {
+    pasos_motor_rev: parseInt(document.getElementById("cfg-pasos").value),
+    microstep: parseInt(document.getElementById("cfg-micro").value),
+    reductor: parseInt(document.getElementById("cfg-reductor").value),
+    sentido: parseInt(document.getElementById("cfg-sentido").value),
+    eje_modo: modo,
+  };
+  if (modo === "manual") {
+    payload.axis_point = [
+      parseFloat(document.getElementById("eje-px").value) || 0,
+      parseFloat(document.getElementById("eje-py").value) || 0,
+      parseFloat(document.getElementById("eje-pz").value) || 0,
+    ];
+    payload.axis_dir = [
+      parseFloat(document.getElementById("eje-dx").value) || 0,
+      parseFloat(document.getElementById("eje-dy").value) || 0,
+      parseFloat(document.getElementById("eje-dz").value) || 0,
+    ];
+  } else {
+    // En auto dejamos que el backend recalcule el centroide en el próximo barrido
+    payload.axis_point = null;
+  }
+  return post("/test_barrido/config", payload).then(d => {
+    if (d.success) {
+      document.getElementById("grados-paso").textContent = d.grados_por_paso.toFixed(6);
+    }
+    return d;
+  });
+}
+["cfg-pasos", "cfg-micro", "cfg-reductor", "cfg-sentido",
+ "eje-px", "eje-py", "eje-pz", "eje-dx", "eje-dy", "eje-dz"].forEach(id => {
+  document.getElementById(id).addEventListener("change", enviarConfig);
+});
+
+// Toggle modo manual/auto del eje
+document.querySelectorAll('input[name="eje-modo"]').forEach(r => {
+  r.addEventListener("change", () => {
+    const manual = ejeModoActual() === "manual";
+    document.getElementById("eje-manual-campos").style.display = manual ? "" : "none";
+    enviarConfig();
+  });
+});
+
+// --- Jog ---
+function jog(dir) {
+  const pasos = parseInt(document.getElementById("jog-pasos").value);
+  if (!pasos || pasos <= 0) { showToast("Pasos inválido", "warning"); return; }
+  post("/test_barrido/jog", { pasos, dir }).then(d => {
+    if (d.success) showToast(`Eje movido ${d.pasos_realizados} pasos`, "success");
+    else showToast(d.message || "Error en jog", "danger");
+  });
+}
+document.getElementById("btn-jog-der").addEventListener("click", () => jog(1));
+document.getElementById("btn-jog-izq").addEventListener("click", () => jog(0));
+
+// --- Fijar origen ---
+document.getElementById("btn-origen").addEventListener("click", () => {
+  post("/test_barrido/reset", {}).then(d => {
+    if (d.success) {
+      hayNube = false;
+      document.getElementById("btn-guardar").disabled = true;
+      document.getElementById("info-nube").textContent = "—";
+      document.getElementById("save-link").innerHTML = "";
+      Plotly.purge(document.getElementById("nube-3d"));
+      showToast("Origen fijado · nube reiniciada", "success");
+    }
+  });
+});
+
+// --- Barrido (el estado vive en el servidor; la página lo refleja) ---
+let pollTimer    = null;
+let running      = false;
+let finalizando  = false;
+
+function actualizarBarra(actual, total, angulo, npts, fase) {
+  const pct = total > 0 ? Math.round((actual / total) * 100) : 0;
+  const bar = document.getElementById("progreso-bar");
+  bar.style.width = pct + "%";
+  bar.textContent = pct + "%";
+  let label;
+  if (fase === 'home')        label = '🏠 Yendo a Home...';
+  else if (fase === 'offset') label = '➡️ Aplicando offset...';
+  else                        label = `Perfil ${actual} / ${total}`;
+  document.getElementById("progreso-label").textContent = label;
+  document.getElementById("progreso-info").textContent =
+    `${(angulo || 0).toFixed(2)}° · ${npts || 0} pts`;
+}
+
+function setRunningUI(on) {
+  running = on;
+  const btn = document.getElementById("btn-barrer");
+  btn.disabled = on;
+  document.getElementById("btn-parar").disabled = !on;
+  btn.innerHTML = on
+    ? '<span class="spinner-border spinner-border-sm me-2"></span>Barriendo...'
+    : '<i class="bi bi-arrow-repeat"></i> Iniciar barrido';
+  if (on) document.getElementById("progreso-wrap").style.display = "block";
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(() => {
+    fetch("/test_barrido/progreso").then(r => r.json()).then(p => {
+      actualizarBarra(p.actual, p.total, p.angulo_deg, p.num_puntos, p.fase);
+      if (!p.activo && running) finalizarBarrido();   // terminó (o lo pararon)
+    }).catch(() => {});
+  }, 500);
+}
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+// Trae la nube final del servidor y deja la UI lista para guardar
+function finalizarBarrido() {
+  if (finalizando) return;
+  finalizando = true;
+  stopPolling();
+  setRunningUI(false);
+  fetch("/test_barrido/estado").then(r => r.json()).then(s => {
+    if (s.num_puntos > 0 && s.puntos && s.puntos.length) {
+      dibujarNube(s.puntos);
+      hayNube = true;
+      document.getElementById("btn-guardar").disabled = false;
+      document.getElementById("info-nube").textContent =
+        `${s.num_puntos} pts · ${s.angulo_deg}°`;
+    }
+    setTimeout(() => { document.getElementById("progreso-wrap").style.display = "none"; }, 1500);
+  }).catch(() => {}).finally(() => { finalizando = false; });
+}
+
+// Al cargar la página: reflejar lo que tenga el servidor (nube y/o barrido en curso)
+function restaurarEstado() {
+  fetch("/test_barrido/estado").then(r => r.json()).then(s => {
+    if (s.num_puntos > 0 && s.puntos && s.puntos.length) {
+      dibujarNube(s.puntos);
+      hayNube = true;
+      document.getElementById("btn-guardar").disabled = false;
+      document.getElementById("info-nube").textContent = `${s.num_puntos} pts · ${s.angulo_deg}°`;
+    }
+    if (s.activo) {                       // hay un barrido corriendo → reengancharse
+      setRunningUI(true);
+      actualizarBarra(s.actual, s.total, s.angulo_deg, s.num_puntos, s.fase);
+      startPolling();
+    }
+  }).catch(() => {});
+}
+restaurarEstado();
+
+document.getElementById("btn-barrer").addEventListener("click", () => {
+  if (running) return;
+  finalizando = false;
+  document.getElementById("errores-box").style.display = "none";
+  setRunningUI(true);
+  const total = parseInt(document.getElementById("bar-incrementos").value)
+              + (document.getElementById("bar-inicial").checked ? 1 : 0);
+  actualizarBarra(0, total, 0, 0);
+  startPolling();
+
+  enviarConfig().then(() => post("/test_barrido/barrer", {
+    pasos_incremento: parseInt(document.getElementById("bar-pasos").value),
+    n_incrementos: parseInt(document.getElementById("bar-incrementos").value),
+    dir: parseInt(document.getElementById("bar-dir").value),
+    capturar_inicial: document.getElementById("bar-inicial").checked,
+    streaming: !document.getElementById("bar-pausar-stream").checked,
+    ir_a_home: document.getElementById("bar-home").checked,
+    offset_pasos: parseInt(document.getElementById("bar-offset").value) || 0,
+    offset_dir: parseInt(document.getElementById("bar-offset-dir").value),
+    usar_mecanica: document.getElementById("bar-mecanica").checked,
+  }))
+  .then(d => {
+    if (!d.success) {
+      showToast(d.message || "Error en barrido", "danger");
+    } else {
+      const eb = document.getElementById("errores-box");
+      if (d.errores && d.errores.length) {
+        eb.style.display = "block";
+        eb.textContent = "Avisos: " + d.errores.join(" · ");
+      }
+      showToast(d.interrumpido
+        ? `⛔ Barrido detenido: ${d.num_puntos} pts en ${d.angulo_total_deg}°`
+        : `✓ Barrido: ${d.num_puntos} pts en ${d.angulo_total_deg}°`,
+        d.interrumpido ? "warning" : "success");
+    }
+    finalizarBarrido();   // dibuja la nube final desde el servidor
+  })
+  .catch(err => { console.error(err); showToast("Error de conexión", "danger"); });
+});
+
+// --- Parar barrido ---
+document.getElementById("btn-parar").addEventListener("click", () => {
+  const btnParar = document.getElementById("btn-parar");
+  btnParar.disabled = true;
+  btnParar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deteniendo...';
+  post("/test_barrido/stop", {}).then(d => {
+    if (d.success) showToast("Parada solicitada · terminando el paso actual", "warning");
+    else showToast(d.message || "Error al parar", "danger");
+  }).finally(() => {
+    btnParar.innerHTML = '<i class="bi bi-stop-circle"></i> Parar barrido';
+  });
+});
+
+// --- Guardar ---
+document.getElementById("btn-guardar").addEventListener("click", () => {
+  if (!hayNube) return;
+  post("/test_barrido/guardar", {
+    nombre: document.getElementById("save-nombre").value
+  }).then(d => {
+    if (d.success) {
+      document.getElementById("save-link").innerHTML =
+        `<a href="${d.csv_url}" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-box"></i> Ver en 3D: ${d.nombre}</a>`;
+      showToast(`✓ Guardado: ${d.nombre} (${d.num_puntos} pts)`, "success");
+    } else {
+      showToast(d.message || "Error al guardar", "danger");
+    }
+  });
+});
+</script>
+
+{% endblock %}

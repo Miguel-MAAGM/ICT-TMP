@@ -8,30 +8,66 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
       body { overflow-x: hidden; margin: 0; }
-      #sidebar { width: 280px; transition: width 0.3s; }
-      #sidebar.collapsed { width: 80px; }
+      #sidebar {
+        width: 280px;
+        transition: width 0.3s;
+        background: linear-gradient(180deg, #1f2530 0%, #161a22 100%) !important;
+      }
+      #sidebar.collapsed { width: 84px; }
       #sidebar .nav-link span,
-      #sidebar .fs-4,
-      #sidebar .dropdown-toggle strong {
+      #sidebar .brand-text {
         transition: opacity 0.3s;
       }
       #sidebar.collapsed .nav-link span,
-      #sidebar.collapsed .fs-4,
-      #sidebar.collapsed .dropdown-toggle strong {
+      #sidebar.collapsed .brand-text {
         display: none;
         opacity: 0;
       }
+      /* Colapsada: ocultar el botón y dejar solo el logo (clickeable) centrado */
+      #sidebar.collapsed .btn-toggle { display: none; }
+      #sidebar.collapsed .sidebar-header { justify-content: center; }
+      .brand { cursor: pointer; }
+
+      /* Marca / logo */
+      .brand-icon {
+        width: 36px; height: 36px; flex: 0 0 auto;
+        border-radius: 10px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #0d6efd, #6f42c1);
+        color: #fff; font-size: 1.15rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      }
+      .brand-text { font-size: 1.1rem; font-weight: 600; letter-spacing: .3px; }
+
+      /* Botón colapsar */
+      .btn-toggle {
+        color: #adb5bd; border: 1px solid rgba(255,255,255,.14);
+        border-radius: 8px; line-height: 1;
+      }
+      .btn-toggle:hover { color: #fff; background: rgba(255,255,255,.08); }
+
+      /* Navegación */
+      #sidebar hr { border-color: rgba(255,255,255,.12); }
+      #sidebar .nav-link {
+        border-radius: 8px; margin-bottom: 2px;
+        display: flex; align-items: center;
+      }
+      #sidebar .nav-link:hover { background: rgba(255,255,255,.06); }
+      #sidebar .nav-link.active { background: linear-gradient(135deg, #0d6efd, #6f42c1); }
+      #sidebar.collapsed .nav-link { justify-content: center; }
+      #sidebar.collapsed .nav-link i { margin-right: 0 !important; }
     </style>
+    {% block extrahead %}{% endblock %}
   </head>
   <body>
     <div class="d-flex">
       <div id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 text-bg-dark" style="height: 100vh;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <a href="/" class="d-flex align-items-center text-white text-decoration-none">
-            <i class="bi bi-bootstrap-fill fs-3"></i>
-            <span class="fs-4 ms-2">Sidebar</span>
-          </a>
-          <button id="toggle-btn" class="btn btn-sm btn-outline-light ms-2">
+        <div class="sidebar-header d-flex justify-content-between align-items-center mb-3">
+          <span class="brand d-flex align-items-center text-white">
+            <span class="brand-icon"><i class="bi bi-bounding-box-circles"></i></span>
+            <span class="brand-text ms-2">Escáner 3D</span>
+          </span>
+          <button id="toggle-btn" class="btn btn-sm btn-toggle">
             <i class="bi bi-list"></i>
           </button>
         </div>
@@ -51,6 +87,12 @@
           </li>
 
           <li>
+            <a href="{{ url_for('dashboard') }}" class="nav-link text-white {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="bi bi-graph-up me-2"></i> <span>Dashboard</span>
+            </a>
+          </li>
+
+          <li>
             <a href="{{ url_for('view_logs') }}" class="nav-link text-white {% if request.endpoint == 'view_logs' %}active{% endif %}">
                 <i class="bi bi-terminal me-2"></i> <span>Logs</span>
             </a>
@@ -59,6 +101,18 @@
           <li>
             <a href="{{ url_for('ajustes') }}" class="nav-link text-white {% if request.endpoint == 'ajustes' %}active{% endif %}">
               <i class="bi bi-gear me-2"></i> <span>Ajustes</span>
+            </a>
+          </li>
+
+          <li>
+            <a href="{{ url_for('ajustes_mecanica') }}" class="nav-link text-white {% if request.endpoint == 'ajustes_mecanica' %}active{% endif %}">
+              <i class="bi bi-rulers me-2"></i> <span>Mecánica</span>
+            </a>
+          </li>
+
+          <li>
+            <a href="{{ url_for('programacion_page') }}" class="nav-link text-white {% if request.endpoint == 'programacion_page' %}active{% endif %}">
+              <i class="bi bi-alarm me-2"></i> <span>Programación</span>
             </a>
           </li>
           
@@ -81,31 +135,117 @@
           </li>
 
         </ul>
-        <hr>
-        <div class="dropdown mt-auto">
-          <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-            <img src="https://github.com/mdo.png" alt="" width="32" height="32" class="rounded-circle me-2">
-            <strong>Usuario</strong>
-          </a>
-          <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-            <li><a class="dropdown-item" href="#">Nuevo proyecto...</a></li>
-            <li><a class="dropdown-item" href="#">Configuración</a></li>
-            <li><a class="dropdown-item" href="#">Perfil</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="#">Salir</a></li>
-          </ul>
-        </div>
       </div>
 
       <div class="p-4 flex-grow-1 d-flex flex-column" style="height:100vh; overflow-y: auto;">
         {% block content %}{% endblock %}
       </div>
     </div>
+    <!-- Modal global: aviso de barrido programado con cuenta de 30 s -->
+    <div class="modal fade" id="evt-modal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-alarm text-warning"></i> Barrido programado</h5>
+          </div>
+          <div class="modal-body">
+            <p class="mb-1">Va a ejecutarse el barrido <strong id="evt-nombre"></strong>.</p>
+            <p class="mb-2">Comienza en <span id="evt-seg" class="fw-bold fs-4 text-primary">30</span> s.
+               ¿Ejecutar ahora o abortar?</p>
+            <div id="evt-estado" class="small"></div>
+          </div>
+          <div class="modal-footer" id="evt-botones">
+            <button id="evt-abortar" class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> Abortar</button>
+            <button id="evt-ejecutar" class="btn btn-success"><i class="bi bi-play-fill"></i> Ejecutar ahora</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      document.getElementById("toggle-btn").addEventListener("click", function() {
+      function toggleSidebar() {
         document.getElementById("sidebar").classList.toggle("collapsed");
-      });
+      }
+      document.getElementById("toggle-btn").addEventListener("click", toggleSidebar);
+      // Colapsada, el ☰ se oculta: el logo actúa como botón para reabrir
+      document.querySelector(".brand").addEventListener("click", toggleSidebar);
+
+      // ===== Barridos programados: poll + modal con cuenta de 30 s =====
+      (function () {
+        const elModal = document.getElementById('evt-modal');
+        let modal = null, cuenta = null, abierto = false, ejecutando = false, job = null;
+
+        function poll() {
+          if (abierto || ejecutando) return;
+          fetch('/api/programacion/pendiente').then(r => r.json()).then(d => {
+            if (d.pendiente && !abierto && !ejecutando) mostrar(d.pendiente);
+          }).catch(() => {});
+        }
+
+        function mostrar(j) {
+          job = j; abierto = true;
+          document.getElementById('evt-nombre').textContent = j.nombre;
+          document.getElementById('evt-estado').textContent = '';
+          document.getElementById('evt-botones').style.display = '';
+          let seg = 30;
+          document.getElementById('evt-seg').textContent = seg;
+          modal = modal || new bootstrap.Modal(elModal, { backdrop: 'static', keyboard: false });
+          modal.show();
+          cuenta = setInterval(() => {
+            seg--; document.getElementById('evt-seg').textContent = seg;
+            if (seg <= 0) { clearInterval(cuenta); ejecutar(); }
+          }, 1000);
+        }
+
+        function cerrar() {
+          if (cuenta) clearInterval(cuenta);
+          abierto = false;
+          if (modal) modal.hide();
+        }
+
+        async function ejecutar() {
+          if (cuenta) clearInterval(cuenta);
+          ejecutando = true;
+          document.getElementById('evt-botones').style.display = 'none';
+          document.getElementById('evt-estado').innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2"></span>Ejecutando barrido…';
+          try {
+            const r = await fetch('/test_barrido/barrer', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ usar_mecanica: true, pasos_incremento: job.pasos_incremento,
+                                     n_incrementos: 1, capturar_inicial: true, streaming: false })
+            });
+            const d = await r.json();
+            if (!d.success) {
+              document.getElementById('evt-estado').innerHTML = '<span class="text-danger">Error: ' + (d.message || '') + '</span>';
+              await fetch('/api/programacion/abortar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: job.id }) });
+            } else {
+              const ts = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+              const rg = await fetch('/test_barrido/guardar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: 'barrido_prog_' + ts }) });
+              const dg = await rg.json();
+              await fetch('/api/programacion/ejecutado', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: job.id, archivo: (dg.nombre || ''), num_puntos: d.num_puntos || 0 })
+              });
+              document.getElementById('evt-estado').innerHTML = '<span class="text-success">✓ Barrido guardado: ' + (dg.nombre || '') + '</span>';
+            }
+          } catch (e) {
+            document.getElementById('evt-estado').innerHTML = '<span class="text-danger">Error: ' + e + '</span>';
+          }
+          setTimeout(() => { ejecutando = false; cerrar(); }, 4000);
+        }
+
+        async function abortar() {
+          const j = job; cerrar();
+          if (j) await fetch('/api/programacion/abortar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: j.id }) });
+        }
+
+        document.getElementById('evt-ejecutar').addEventListener('click', ejecutar);
+        document.getElementById('evt-abortar').addEventListener('click', abortar);
+        setTimeout(poll, 3000);
+        setInterval(poll, 20000);
+      })();
     </script>
   </body>
 </html>

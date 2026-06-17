@@ -3,25 +3,65 @@
 
 {% block extrahead %}
 <style>
-  /* Contenedor central para que se vea bien en móvil y PC */
-  .control-container {
-    max-width: 600px;
-    margin: 20px auto;
+  /* Layout principal: cámara a la izquierda, barra de control a la derecha */
+  .control-layout {
+    display: flex;
+    gap: 20px;
     padding: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* Zona de la cámara (flexible, ocupa el espacio disponible) */
+  .camera-panel {
+    flex: 1 1 480px;
+    min-width: 320px;
+  }
+
+  .camera-panel .video-wrapper {
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  }
+
+  .camera-panel img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Barra lateral de control (ancho fijo en escritorio) */
+  .control-sidebar {
+    flex: 0 0 300px;
+    max-width: 100%;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+
+  .control-sidebar hr { margin: 6px 0; opacity: .2; }
+
+  /* En pantallas pequeñas, la barra pasa debajo de la cámara */
+  @media (max-width: 768px) {
+    .control-sidebar {
+      flex: 1 1 100%;
+    }
   }
 
   /* Estilos generales de botones grandes */
   .btn-big {
     width: 100%;
-    padding: 15px;
-    font-size: 1.2rem;
+    padding: 8px;
+    font-size: 1rem;
     font-weight: bold;
-    border-radius: 12px;
+    border-radius: 10px;
     text-transform: uppercase;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 5px rgba(0,0,0,0.1);
     transition: transform 0.1s;
   }
 
@@ -38,22 +78,22 @@
 
   .speed-group .btn {
     flex: 1; /* Para que los 3 ocupen el mismo ancho */
-    padding: 12px;
-    font-size: 1rem;
+    padding: 8px;
+    font-size: 0.9rem;
   }
 
   /* Colores específicos para facilitar la operación visual */
   .btn-home { background-color: #0d6efd; color: white; } /* Azul */
-  .btn-loop { background-color: #198754; color: white; height: 80px; font-size: 1.5rem; } /* Verde grande */
-  .btn-stop { background-color: #dc3545; color: white; height: 80px; font-size: 1.5rem; border: 4px solid #b02a37; } /* Rojo Grande */
+  .btn-loop { background-color: #198754; color: white; height: 52px; font-size: 1.1rem; } /* Verde */
+  .btn-stop { background-color: #dc3545; color: white; height: 52px; font-size: 1.1rem; border: 3px solid #b02a37; } /* Rojo */
 
   /* NUEVO: botón solo loop (calibración) */
   .btn-solo {
     background-color: #6f42c1; /* Morado */
     color: white;
-    height: 80px;
-    font-size: 1.25rem;
-    border: 4px solid #5a34a3;
+    height: 52px;
+    font-size: 1.05rem;
+    border: 3px solid #5a34a3;
   }
 
   /* Botones de velocidad (Gris oscuro) */
@@ -75,18 +115,19 @@
   .section-label {
     font-weight: 600;
     color: #495057;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
     text-align: center;
+    font-size: 0.85rem;
   }
 
   /* Caja informativa para calibración */
   .hint-box {
     background: #f8f9fa;
     border: 1px solid #e9ecef;
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: 10px;
+    padding: 8px 10px;
     color: #495057;
-    font-size: 0.95rem;
+    font-size: 0.8rem;
   }
 
   /* Notificación flotante simple (Toast) */
@@ -117,67 +158,120 @@
 {% endblock %}
 
 {% block content %}
-<div class="control-container">
+<div class="control-layout">
 
-  <div>
-    <div class="section-label">Configuración Inicial</div>
-    <button class="btn btn-big btn-home" onclick="sendCommand('autohome', 'Iniciando Auto Home...')">
-      <i class="bi bi-house-door-fill"></i> Auto Home
-    </button>
-  </div>
-
-  <hr>
-
-  <div>
-    <div class="section-label">Seleccionar Velocidad (Captura)</div>
-    <div class="speed-group">
-      <button class="btn btn-big btn-speed" id="btn-slow" onclick="setSpeed('captureslow', 'btn-slow')">
-        Lento
-      </button>
-      <button class="btn btn-big btn-speed active-speed" id="btn-mid" onclick="setSpeed('capturemid', 'btn-mid')">
-        Medio
-      </button>
-      <button class="btn btn-big btn-speed" id="btn-fast" onclick="setSpeed('capturefast', 'btn-fast')">
-        Rápido
-      </button>
+  <!-- ========================= CÁMARA ========================= -->
+  <div class="camera-panel">
+    <div class="section-label">Vista de la Cámara</div>
+    <div class="video-wrapper">
+      <img src="{{ url_for('video_feed') }}" alt="Vista de la cámara">
     </div>
   </div>
 
-  <hr>
+  <!-- ========================= BARRA LATERAL DE CONTROL ========================= -->
+  <div class="control-sidebar">
 
-  <!-- ========================= BLOQUE CAPTURA ========================= -->
-  <div>
-    <div class="section-label">Ejecución (Captura de fotos)</div>
-    <button class="btn btn-big btn-loop" onclick="sendCommand('startloopcapture', 'Iniciando Loop Capture...')">
-      <i class="bi bi-play-circle-fill"></i> INICIAR LOOP
-    </button>
-  </div>
+    <!-- Pestañas -->
+    <ul class="nav nav-tabs nav-fill" id="ctrlTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-control-btn" data-bs-toggle="tab"
+                data-bs-target="#tab-control" type="button" role="tab">
+          <i class="bi bi-joystick"></i> Control
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-loop-btn" data-bs-toggle="tab"
+                data-bs-target="#tab-loop" type="button" role="tab">
+          <i class="bi bi-arrow-repeat"></i> Loop
+        </button>
+      </li>
+    </ul>
 
-  <!-- ========================= BLOQUE SOLO LOOP (SEPARADO) ========================= -->
-  <hr>
+    <div class="tab-content pt-2">
 
-  <div>
-    <div class="section-label">Calibración (Movimiento continuo)</div>
+      <!-- ===== TAB CONTROL: Auto Home + jog ===== -->
+      <div class="tab-pane fade show active" id="tab-control" role="tabpanel">
+        <div class="d-flex flex-column gap-2">
+          <div>
+            <div class="section-label">Configuración Inicial</div>
+            <button class="btn btn-big btn-home" onclick="sendCommand('autohome', 'Iniciando Auto Home...')">
+              <i class="bi bi-house-door-fill"></i> Auto Home
+            </button>
+          </div>
 
-    <div class="hint-box">
-      Este modo es solo para dejar el sistema moviéndose ida/vuelta (ping-pong) para
-      mover el tablero de ajedrez durante la calibración. No es el modo de captura.
+          <hr>
+
+          <div>
+            <div class="section-label">Movimiento manual (jog)</div>
+            <div class="input-group mb-2">
+              <span class="input-group-text">Pasos</span>
+              <input type="number" class="form-control" id="jog-pasos" value="500" min="1">
+            </div>
+            <div class="speed-group">
+              <button class="btn btn-big btn-speed jog-btn" onclick="jog(0)">
+                <i class="bi bi-arrow-left"></i> Izquierda
+              </button>
+              <button class="btn btn-big btn-speed jog-btn" onclick="jog(1)">
+                Derecha <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TAB LOOP: velocidad + iniciar loop + solo loop ===== -->
+      <div class="tab-pane fade" id="tab-loop" role="tabpanel">
+        <div class="d-flex flex-column gap-2">
+          <div>
+            <div class="section-label">Seleccionar Velocidad (Captura)</div>
+            <div class="speed-group">
+              <button class="btn btn-big btn-speed" id="btn-slow" onclick="setSpeed('captureslow', 'btn-slow')">
+                Lento
+              </button>
+              <button class="btn btn-big btn-speed active-speed" id="btn-mid" onclick="setSpeed('capturemid', 'btn-mid')">
+                Medio
+              </button>
+              <button class="btn btn-big btn-speed" id="btn-fast" onclick="setSpeed('capturefast', 'btn-fast')">
+                Rápido
+              </button>
+            </div>
+          </div>
+
+          <hr>
+
+          <div>
+            <div class="section-label">Ejecución (Captura de fotos)</div>
+            <button class="btn btn-big btn-loop" onclick="sendCommand('startloopcapture', 'Iniciando Loop Capture...')">
+              <i class="bi bi-play-circle-fill"></i> INICIAR LOOP
+            </button>
+          </div>
+
+          <hr>
+
+          <div>
+            <div class="section-label">Calibración (Movimiento continuo)</div>
+            <div class="hint-box">
+              Este modo es solo para dejar el sistema moviéndose ida/vuelta (ping-pong) para
+              mover el tablero de ajedrez durante la calibración. No es el modo de captura.
+            </div>
+            <div style="margin-top: 10px;">
+              <button class="btn btn-big btn-solo" onclick="sendCommand('sololoop', 'Iniciando SOLO LOOP (calibración)...')">
+                <i class="bi bi-arrow-left-right"></i> SOLO LOOP
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <div style="margin-top: 12px;">
-      <button class="btn btn-big btn-solo" onclick="sendCommand('sololoop', 'Iniciando SOLO LOOP (calibración)...')">
-        <i class="bi bi-arrow-left-right"></i> SOLO LOOP
-      </button>
-    </div>
-  </div>
-
-  <!-- ========================= STOP GENERAL ========================= -->
-  <div class="mt-4">
+    <!-- ===== STOP siempre visible ===== -->
+    <hr>
     <button class="btn btn-big btn-stop" onclick="sendCommand('stop', '¡STOP ENVIADO!')">
       <i class="bi bi-stop-circle-fill"></i> STOP
     </button>
-  </div>
 
+  </div>
 </div>
 
 <div id="simple-toast">Comando Enviado</div>
@@ -211,6 +305,27 @@
 
     let msg = 'Velocidad: ' + document.getElementById(btnId).innerText;
     sendCommand(action, msg);
+  }
+
+  // Jog: mueve el eje N pasos a izquierda (dir 0) o derecha (dir 1)
+  function jog(dir) {
+    const pasos = parseInt(document.getElementById('jog-pasos').value);
+    if (!pasos || pasos <= 0) { showToast('Pasos inválido'); return; }
+    const botones = document.querySelectorAll('.jog-btn');
+    botones.forEach(b => b.disabled = true);
+    showToast((dir === 1 ? 'Derecha' : 'Izquierda') + ' · ' + pasos + ' pasos');
+    fetch('/test_barrido/jog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pasos: pasos, dir: dir })
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) showToast('Movido ' + d.pasos_realizados + ' pasos');
+        else showToast('Error: ' + (d.message || ''));
+      })
+      .catch(() => showToast('Error de conexión'))
+      .finally(() => botones.forEach(b => b.disabled = false));
   }
 
   // Función para mostrar la notificación flotante
